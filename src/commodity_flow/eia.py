@@ -112,10 +112,7 @@ def fetch_weekly_stocks(api_key: str, start: str = "2024-01") -> pd.DataFrame:
 
     # Aggregate all products per period+PADD to get total stocks
     if not df.empty and "duoarea" in df.columns:
-        df = (
-            df.groupby(["period", "duoarea", "date"], as_index=False)
-            .agg({"value": "sum"})
-        )
+        df = df.groupby(["period", "duoarea", "date"], as_index=False).agg({"value": "sum"})
         # Restore duoarea-name
         df["duoarea-name"] = df["duoarea"].map(PADDS)
         df["units"] = "MBBL"

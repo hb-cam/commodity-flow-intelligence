@@ -44,11 +44,10 @@ class ProvenanceTracker:
         for s in self._sources:
             live_icon = "Y" if s.live else "N (synthetic)"
             lines.append(
-                f"| {s.name} | {s.source} | {live_icon} | "
-                f"{s.rows:,} | {s.date_range} | {s.notes} |"
+                f"| {s.name} | {s.source} | {live_icon} | {s.rows:,} | {s.date_range} | {s.notes} |"
             )
 
-        ts = self._sources[0].fetched_at.strftime("%Y-%m-%d %H:%M")
+        ts = max(s.fetched_at for s in self._sources).strftime("%Y-%m-%d %H:%M")
         lines.append("")
         lines.append(f"_Data loaded at {ts}._")
 
@@ -57,8 +56,7 @@ class ProvenanceTracker:
         if synth_count > 0:
             lines.append("")
             lines.append(
-                f"_**{live_count} live** and **{synth_count} synthetic** "
-                f"data sources in this run._"
+                f"_**{live_count} live** and **{synth_count} synthetic** data sources in this run._"
             )
             synth_names = [s.name for s in self._sources if not s.live]
             lines.append(
