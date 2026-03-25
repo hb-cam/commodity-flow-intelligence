@@ -125,7 +125,9 @@ def fetch_weekly_stocks(api_key: str, start: str = "2024-01") -> pd.DataFrame:
 
 def fetch_steo_projections(api_key: str) -> pd.DataFrame:
     """Pull Short Term Energy Outlook — crude oil production & imports forecasts."""
-    series_ids = ["PAPR_WORLD", "COIMPUS", "COPS_SPR", "COSTPUS"]
+    # PAPR_WORLD = world production, CONIPUS = US crude net imports,
+    # COPRPUS = US crude production, COSTPUS = US crude stocks
+    series_ids = ["PAPR_WORLD", "CONIPUS", "COPRPUS", "COSTPUS"]
     params = {
         "frequency": "monthly",
         "data[0]": "value",
@@ -139,6 +141,10 @@ def fetch_steo_projections(api_key: str) -> pd.DataFrame:
         df["date"] = pd.to_datetime(df["period"])
     if "value" in df.columns:
         df["value"] = pd.to_numeric(df["value"], errors="coerce")
+    # Normalize column name: live API uses camelCase "seriesId",
+    # synthetic uses "series_id"
+    if "seriesId" in df.columns:
+        df = df.rename(columns={"seriesId": "series_id"})
     return df
 
 

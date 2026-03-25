@@ -262,7 +262,7 @@ def generate_synthetic_steo() -> pd.DataFrame:
             {
                 "date": d,
                 "period": d.strftime("%Y-%m"),
-                "series_id": "COIMPUS",
+                "series_id": "CONIPUS",
                 "series_name": "US Crude Oil Imports",
                 "value": round(imports_val, 2),
                 "units": "million bbl/d",

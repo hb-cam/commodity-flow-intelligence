@@ -64,7 +64,10 @@ def build_scorecard(
 
     # STEO forward overlay
     if df_steo is not None:
-        steo_imports = df_steo[df_steo["series_id"] == "COIMPUS"].copy()
+        steo_imports = df_steo[df_steo["series_id"] == "CONIPUS"].copy()
+        # Infer forecast flag if not present (live STEO includes future periods)
+        if "is_forecast" not in steo_imports.columns:
+            steo_imports["is_forecast"] = steo_imports["date"] > pd.Timestamp.now()
         steo_forecast = steo_imports[steo_imports["is_forecast"]].set_index("date")["value"]
         if not steo_forecast.empty:
             steo_z = compute_gap_score(
