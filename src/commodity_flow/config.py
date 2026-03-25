@@ -25,13 +25,13 @@ PADDS: dict[str, str] = {
     "PADD 5": "West Coast",
 }
 
-# EIA duoarea codes for PADDs
+# EIA duoarea codes for PADDs (API uses -Z00 suffix)
 PADD_DUOAREA_CODES: dict[str, str] = {
-    "PADD 1": "R10",
-    "PADD 2": "R20",
-    "PADD 3": "R30",
-    "PADD 4": "R40",
-    "PADD 5": "R50",
+    "PADD 1": "R10-Z00",
+    "PADD 2": "R20-Z00",
+    "PADD 3": "R30-Z00",
+    "PADD 4": "R40-Z00",
+    "PADD 5": "R50-Z00",
 }
 
 # Approximate import baselines (thousand barrels/month) for synthetic data
