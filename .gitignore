@@ -31,3 +31,6 @@ data/
 *.parquet
 *.csv
 !*.csv.example
+
+# CI artifacts
+signal_result.json

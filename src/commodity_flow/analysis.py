@@ -98,6 +98,70 @@ def build_scorecard(
     return scorecard
 
 
+def compute_steo_accuracy(
+    df_imports: pd.DataFrame,
+    df_steo: pd.DataFrame,
+    lookback_months: int = 24,
+) -> dict:
+    """Compute historical accuracy of STEO import forecasts.
+
+    Compares past STEO projections for periods that have since been realized
+    against actual import data, yielding MAE, RMSE, and a confidence band
+    width for forward projections.
+
+    Returns dict with: mae, rmse, n_comparisons, band_1sigma, band_2sigma.
+    """
+    if df_steo is None or df_steo.empty or df_imports.empty:
+        return {"mae": np.nan, "rmse": np.nan, "n_comparisons": 0,
+                "band_1sigma": np.nan, "band_2sigma": np.nan}
+
+    # STEO CONIPUS is in million bbl/d; convert imports to same units
+    national_monthly = df_imports.groupby("date")["value"].sum().sort_index()
+    actual_daily_mbd = national_monthly / 30 / 1000  # MBBL/month → million bbl/d
+
+    steo_conipus = df_steo[df_steo["series_id"] == "CONIPUS"].copy()
+    if steo_conipus.empty:
+        return {"mae": np.nan, "rmse": np.nan, "n_comparisons": 0,
+                "band_1sigma": np.nan, "band_2sigma": np.nan}
+
+    # Note: CONIPUS is NET imports, our data is GROSS. We can't compare
+    # absolute levels, but we CAN compare the shape/direction by computing
+    # errors in z-score space (normalized, unit-independent).
+    steo_vals = steo_conipus.set_index("date")["value"].sort_index()
+    common_dates = actual_daily_mbd.index.intersection(steo_vals.index)
+
+    if len(common_dates) < 6:
+        return {"mae": np.nan, "rmse": np.nan, "n_comparisons": len(common_dates),
+                "band_1sigma": np.nan, "band_2sigma": np.nan}
+
+    # Compare z-scores (unit-independent)
+    actual_z = compute_gap_score(actual_daily_mbd, 12)
+    steo_z = compute_gap_score(steo_vals, 12)
+
+    common_z = common_dates[common_dates.isin(actual_z.dropna().index) &
+                             common_dates.isin(steo_z.dropna().index)]
+    if len(common_z) < 6:
+        return {"mae": np.nan, "rmse": np.nan, "n_comparisons": len(common_z),
+                "band_1sigma": np.nan, "band_2sigma": np.nan}
+
+    # Use most recent lookback_months
+    recent = sorted(common_z)[-lookback_months:]
+    errors = steo_z.loc[recent] - actual_z.loc[recent]
+    errors = errors.dropna()
+
+    mae = errors.abs().mean()
+    rmse = np.sqrt((errors**2).mean())
+    std = errors.std()
+
+    return {
+        "mae": float(mae),
+        "rmse": float(rmse),
+        "n_comparisons": len(errors),
+        "band_1sigma": float(std),
+        "band_2sigma": float(2 * std),
+    }
+
+
 def _validate_scorecard_inputs(
     df_imports: pd.DataFrame,
     df_natgas: pd.DataFrame,

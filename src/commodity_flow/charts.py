@@ -38,8 +38,10 @@ LAYOUT_DEFAULTS = dict(
 )
 
 
-def plot_scorecard(scorecard: pd.DataFrame) -> go.Figure:
-    """Composite gap scorecard with STEO forecast overlay."""
+def plot_scorecard(
+    scorecard: pd.DataFrame, steo_accuracy: dict | None = None
+) -> go.Figure:
+    """Composite gap scorecard with STEO forecast overlay and confidence band."""
     actual = scorecard[~scorecard["is_forecast"]]
     forecast = scorecard[scorecard["is_forecast"]]
 
@@ -98,6 +100,22 @@ def plot_scorecard(scorecard: pd.DataFrame) -> go.Figure:
             annotation_text="Forecast",
             annotation_position="top left",
         )
+
+        # STEO confidence band (if accuracy data provided)
+        if steo_accuracy and not pd.isna(steo_accuracy.get("band_1sigma", float("nan"))):
+            band = steo_accuracy["band_1sigma"]
+            center = bridge["composite_gap_score"]
+            fig.add_trace(
+                go.Scatter(
+                    x=list(bridge.index) + list(bridge.index[::-1]),
+                    y=list(center + band) + list((center - band)[::-1]),
+                    fill="toself",
+                    fillcolor="rgba(249,115,22,0.12)",
+                    line=dict(width=0),
+                    name=f"STEO \u00b11\u03c3 band (MAE: {steo_accuracy.get('mae', 0):.2f})",
+                    hoverinfo="skip",
+                )
+            )
 
     # Threshold lines
     fig.add_hline(
