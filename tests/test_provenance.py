@@ -19,29 +19,28 @@ class TestProvenanceTracker:
         assert "240" in summary
         assert "Y" in summary  # live indicator
 
-    def test_single_synthetic_source(self) -> None:
+    def test_single_simulated_source(self) -> None:
         prov = ProvenanceTracker()
-        prov.record(DataSource("Helium", "Synthetic", "synthetic generator", False, rows=9))
+        prov.record(DataSource("Helium", "Simulated", "synthetic generator", False, rows=9))
         summary = prov.summary()
-        assert "N (synthetic)" in summary
+        assert "Simulated" in summary
         assert "Helium" in summary
 
     def test_mixed_sources_footer(self) -> None:
         prov = ProvenanceTracker()
         prov.record(DataSource("A", "EIA", "route1", True, rows=100))
-        prov.record(DataSource("B", "Synthetic", "gen", False, rows=50))
+        prov.record(DataSource("B", "Simulated", "gen", False, rows=50))
         prov.record(DataSource("C", "EIA", "route2", True, rows=200))
         summary = prov.summary()
         assert "**2 live**" in summary
-        assert "**1 synthetic**" in summary
-        assert "B" in summary  # synthetic name listed
+        assert "**1 simulated**" in summary
+        assert "B" in summary
 
-    def test_all_live_no_synthetic_footer(self) -> None:
+    def test_all_live_no_simulated_footer(self) -> None:
         prov = ProvenanceTracker()
         prov.record(DataSource("A", "EIA", "route1", True, rows=100))
         summary = prov.summary()
-        # Should not have the synthetic warning
-        assert "synthetic" not in summary.lower() or "0 synthetic" in summary
+        assert "simulated" not in summary.lower() or "0 simulated" in summary
 
     def test_footnotes_live_tag(self) -> None:
         prov = ProvenanceTracker()
@@ -51,12 +50,11 @@ class TestProvenanceTracker:
         assert "[LIVE]" in notes[0]
         assert "petroleum/move/imp" in notes[0]
 
-    def test_footnotes_synthetic_tag(self) -> None:
+    def test_footnotes_simulated_tag(self) -> None:
         prov = ProvenanceTracker()
-        prov.record(DataSource("Helium", "Synthetic", "synthetic generator", False))
+        prov.record(DataSource("Helium", "Simulated", "synthetic generator", False))
         notes = prov.footnotes()
-        assert "[SYNTHETIC]" in notes[0]
-        # Synthetic generators should not show endpoint in parens
+        assert "[SIMULATED]" in notes[0]
         assert "(synthetic generator)" not in notes[0]
 
     def test_timestamp_uses_latest_source(self) -> None:

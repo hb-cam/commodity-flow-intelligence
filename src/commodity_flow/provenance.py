@@ -42,7 +42,7 @@ class ProvenanceTracker:
         lines.append("|---------|--------|-------|------|------------|-------|")
 
         for s in self._sources:
-            live_icon = "Y" if s.live else "N (synthetic)"
+            live_icon = "Y" if s.live else "Simulated"
             lines.append(
                 f"| {s.name} | {s.source} | {live_icon} | {s.rows:,} | {s.date_range} | {s.notes} |"
             )
@@ -56,11 +56,11 @@ class ProvenanceTracker:
         if synth_count > 0:
             lines.append("")
             lines.append(
-                f"_**{live_count} live** and **{synth_count} synthetic** data sources in this run._"
+                f"_**{live_count} live** and **{synth_count} simulated** data sources in this run._"
             )
             synth_names = [s.name for s in self._sources if not s.live]
             lines.append(
-                f"_Synthetic: {', '.join(synth_names)}. "
+                f"_Simulated from published values: {', '.join(synth_names)}. "
                 "Set `USE_LIVE_API=true` and configure API keys to use live data._"
             )
 
@@ -70,7 +70,7 @@ class ProvenanceTracker:
         """Return per-dataset footnote strings for chart annotations."""
         notes = []
         for s in self._sources:
-            tag = "LIVE" if s.live else "SYNTHETIC"
+            tag = "LIVE" if s.live else "SIMULATED"
             note = f"[{tag}] {s.name}: {s.source}"
             if s.endpoint != "synthetic generator":
                 note += f" ({s.endpoint})"

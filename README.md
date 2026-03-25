@@ -14,7 +14,7 @@ This project combines:
 - **Real-time tanker tracking** via AIS vessel data
 - **Automated signal grading** with threshold-based alerts and trade idea generation
 
-All analysis runs on free, public data. No API keys are required to explore the notebooks -- synthetic data mirrors real EIA schemas with injected disruption patterns.
+All analysis runs on free, public data. No API keys are required to explore the notebooks -- offline mode uses data simulated from published EIA/USGS/Fed historical values with an injected supply disruption scenario for demonstration.
 
 ---
 
@@ -30,7 +30,7 @@ All three notebooks are configured to run in **Google Colab** with zero local se
 | **Wellhead Economics** | Basin breakeven analysis, production-at-risk curves, supply elasticity, rig count trends, double-signal assessment | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hb-cam/commodity-flow-intelligence/blob/main/notebooks/02_wellhead_economics.ipynb) |
 
 > [!TIP]
-> **Using live EIA data in Colab:** When the notebook opens, you will be prompted to enter your [EIA API key](https://www.eia.gov/opendata/register.php) (free, instant registration). Press Enter to skip and use synthetic data instead.
+> **Using live EIA data in Colab:** When the notebook opens, you will be prompted to enter your [EIA API key](https://www.eia.gov/opendata/register.php) (free, instant registration). Press Enter to skip and run on simulated data.
 
 #### How the notebooks connect
 
@@ -115,7 +115,7 @@ uv sync
 uv run jupyter lab
 ```
 
-All three notebooks ship with synthetic data so you can read and run them without any API keys.
+All three notebooks run without API keys using data simulated from published historical values.
 
 ### Daily Signal Alerts
 
@@ -151,8 +151,8 @@ uv run pytest tests/test_security.py      # Security checks
 | `src/commodity_flow/analysis.py` | Z-score gap detection, composite scorecard with unit-alignment validation, breakeven analysis, supply curves |
 | `src/commodity_flow/futures.py` | Yahoo Finance futures overlay (WTI, NatGas, RBOB, Heating Oil) |
 | `src/commodity_flow/ais.py` | AISstream.io async websocket client for real-time tanker tracking |
-| `src/commodity_flow/synthetic.py` | Synthetic data generators baselined to real EIA/USGS/Fed survey data |
-| `src/commodity_flow/provenance.py` | Data provenance tracker -- logs live vs synthetic source per dataset |
+| `src/commodity_flow/synthetic.py` | Simulated data generators -- baselines calibrated to published EIA/USGS/Fed values with injected disruption scenario |
+| `src/commodity_flow/provenance.py` | Data provenance tracker -- logs live vs simulated source per dataset |
 | `src/commodity_flow/refresh.py` | Data refresh pipeline with 20 built-in validation checks |
 | `scripts/signal_check.py` | Daily signal check script -- fetches data, validates, computes signals, outputs JSON. Used by GitHub Actions and runnable locally. |
 | `.github/workflows/daily-signal-check.yml` | GitHub Action: runs weekday mornings after EIA data release. Opens a GitHub issue when alert thresholds are breached. |
@@ -176,7 +176,7 @@ All data sources are free and publicly available.
 
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
-- A free [EIA API key](https://www.eia.gov/opendata/register.php) (optional -- synthetic data works without it)
+- A free [EIA API key](https://www.eia.gov/opendata/register.php) (optional -- simulated data works without it)
 
 ### Setup
 
@@ -206,7 +206,7 @@ AISSTREAM_API_KEY=your-key-here
 USE_LIVE_API=true
 ```
 
-Without keys, all three notebooks run on synthetic data that mirrors real EIA schemas with injected disruption patterns for realistic analysis.
+Without keys, all three notebooks run on data simulated from published historical values with an injected disruption scenario for realistic analysis.
 
 ## Key Concepts
 
@@ -239,12 +239,12 @@ The futures overlay compares physical delivery gap z-scores with commodity futur
 |------|-------|----------------|
 | `test_integration.py` | 30 | Cross-dataset consistency, calculation verification, input robustness, dimensional analysis |
 | `test_verification.py` | 33 | Domain sanity checks against EIA/USGS/Fed benchmarks, unit-alignment warnings |
-| `test_synthetic.py` | 21 | Generator shapes, determinism, disruption injection |
+| `test_synthetic.py` | 21 | Simulated data generators -- shapes, determinism, disruption injection |
 | `test_security.py` | 15 | Credential hygiene, input validation, coordinate rejection, protocol checks |
-| `test_inventory.py` | 14 | Days of supply, seasonal comparison, SPR, synthetic inventory |
+| `test_inventory.py` | 14 | Days of supply, seasonal comparison, SPR, simulated inventory |
 | `test_analysis.py` | 12 | Z-scores, scorecard structure, breakeven classification, supply curves |
 | `test_eia.py` | 10 | URL construction, PADD normalization, STEO rename, schema guards |
-| `test_provenance.py` | 10 | Summary rendering, timestamps, live/synthetic tags |
+| `test_provenance.py` | 10 | Summary rendering, timestamps, live/simulated tags |
 | `test_charts.py` | 8 | Plotly chart functions return Figures, signal table status values |
 | `test_futures.py` | 6 | Mocked yfinance, z-score computation, bounds |
 | `test_ais.py` | 6 | Position report parser, coordinate validation, bounding boxes |
@@ -271,7 +271,7 @@ Contributions are welcome. Whether you are adding a new data source, improving t
 5. **PR**: Open a pull request with a clear description.
 
 > [!NOTE]
-> All three notebooks include a **data provenance table** that tracks which datasets are live vs synthetic, row counts, and date ranges. If you add a new data source, wire it through `provenance.py` and `refresh.py`.
+> All three notebooks include a **data provenance table** that tracks which datasets are live vs simulated, row counts, and date ranges. If you add a new data source, wire it through `provenance.py` and `refresh.py`.
 
 ## Questions & Issues
 
