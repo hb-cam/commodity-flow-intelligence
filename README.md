@@ -259,10 +259,17 @@ Contributions are welcome. Whether you are adding a new data source, improving t
 > [!NOTE]
 > All three notebooks include a **data provenance table** that tracks which datasets are live vs synthetic, row counts, and date ranges. If you add a new data source, wire it through `provenance.py` and `refresh.py`.
 
+## Questions & Issues
+
+If you find a bug, have a question about the methodology, or want to suggest a new data source or signal, please [open an issue](https://github.com/hb-cam/commodity-flow-intelligence/issues).
+
 ## Contact
 
 - **LinkedIn:** [hicksbruce](https://www.linkedin.com/in/hicksbruce)
 - **GitHub:** [@hb-cam](https://github.com/hb-cam)
+
+> [!TIP]
+> Questions about the structural econometric approach, the EIA API integration, or extending the analysis to new commodities? Feel free to [open an issue](https://github.com/hb-cam/commodity-flow-intelligence/issues) or reach out via LinkedIn.
 
 ---
 
