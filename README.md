@@ -117,6 +117,16 @@ uv run jupyter lab
 
 All three notebooks ship with synthetic data so you can read and run them without any API keys.
 
+### Daily Signal Alerts
+
+A GitHub Action runs the signal check every weekday morning after the EIA data release. If any signal exceeds its alert threshold, a GitHub issue is automatically created with the full signal table and a link to the Market Intelligence Briefing.
+
+To enable: add your `EIA_API_KEY` to the repo's [Actions secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions). You can also run the check locally:
+
+```bash
+uv run python scripts/signal_check.py
+```
+
 ### Run Tests
 
 ```bash
@@ -144,6 +154,8 @@ uv run pytest tests/test_security.py      # Security checks
 | `src/commodity_flow/synthetic.py` | Synthetic data generators baselined to real EIA/USGS/Fed survey data |
 | `src/commodity_flow/provenance.py` | Data provenance tracker -- logs live vs synthetic source per dataset |
 | `src/commodity_flow/refresh.py` | Data refresh pipeline with 20 built-in validation checks |
+| `scripts/signal_check.py` | Daily signal check script -- fetches data, validates, computes signals, outputs JSON. Used by GitHub Actions and runnable locally. |
+| `.github/workflows/daily-signal-check.yml` | GitHub Action: runs weekday mornings after EIA data release. Opens a GitHub issue when alert thresholds are breached. |
 | `tests/` | 168 tests across 12 files -- see [Testing](#testing) |
 
 ## Data Sources
@@ -208,7 +220,7 @@ Product-level inventory tracking across crude oil, total gasoline, distillate, j
 - **SPR vs commercial** -- Strategic Petroleum Reserve levels vs commercial crude stocks, tracking the post-2022 SPR drawdown.
 
 ### Composite Gap Scorecard
-Blends oil import z-scores with natural gas import z-scores into a single delivery-risk metric. The STEO forward overlay extends the scorecard into forecast territory using EIA's Short Term Energy Outlook. Includes unit-alignment validation to catch data quality issues before they corrupt the signal.
+Blends oil import z-scores with natural gas import z-scores into a single delivery-risk metric. The STEO forward overlay extends the scorecard into forecast territory using EIA's Short Term Energy Outlook, with a **confidence band** derived from historical STEO accuracy (MAE and RMSE in z-score space). Includes unit-alignment validation to catch data quality issues before they corrupt the signal.
 
 ### Wellhead Economics
 At prevailing WTI price, which producing basins are above or below breakeven? When price drops below marginal cost, wells shut in, supply contracts, and delivery gaps widen downstream. The **supply elasticity curve** sweeps WTI from $30 to $100 and plots cumulative production at risk.
@@ -240,10 +252,12 @@ The futures overlay compares physical delivery gap z-scores with commodity futur
 
 ## Tech Stack
 
-- **Python:** pandas, numpy, matplotlib, plotly, requests, aiohttp, yfinance
+- **Python:** pandas, numpy, matplotlib, plotly, statsmodels, requests, aiohttp, yfinance
 - **Data:** EIA API v2, AISstream.io, USGS, Dallas/KC Fed Surveys, Yahoo Finance
 - **Visualization:** Plotly (interactive dashboards) + Matplotlib (multi-panel grids)
+- **Decomposition:** STL (Seasonal-Trend-Loess) via statsmodels for seasonal pattern analysis
 - **Package management:** uv
+- **CI/CD:** GitHub Actions daily signal check with automated issue creation
 - **Testing:** pytest (168 tests -- integration, verification, security, charts, domain)
 
 ## Contributing
