@@ -47,7 +47,7 @@ PADD_IMPORT_BASELINES: dict[str, int] = {
 
 # Approximate stock baselines (thousand barrels, total petroleum) for synthetic data
 PADD_STOCK_BASELINES: dict[str, int] = {
-    "PADD 1": 150_000,
+    "PADD 1": 250_000,
     "PADD 2": 200_000,
     "PADD 3": 380_000,
     "PADD 4": 35_000,

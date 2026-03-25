@@ -149,20 +149,64 @@ def fetch_steo_projections(api_key: str) -> pd.DataFrame:
 
 
 def fetch_drilling_productivity(api_key: str) -> pd.DataFrame:
-    """Pull Drilling Productivity Report — production per rig by basin."""
+    """Pull Drilling Productivity Report data.
+
+    Note: The DPR is not available as a direct EIA API v2 endpoint.
+    EIA publishes DPR as spreadsheets at eia.gov/petroleum/drilling/.
+    This function raises NotImplementedError to signal callers to use
+    synthetic data instead.
+    """
+    raise NotImplementedError(
+        "DPR is not available via EIA API v2. "
+        "Use synthetic.generate_synthetic_dpr() or download "
+        "spreadsheets from https://www.eia.gov/petroleum/drilling/"
+    )
+
+
+def fetch_natgas_imports(api_key: str, start: str = "2022-01") -> pd.DataFrame:
+    """Pull monthly natural gas imports by mode (pipeline vs LNG) in MMCF.
+
+    Uses EIA point-of-entry endpoint (poe1) which separates Pipeline Imports
+    and Liquefied Natural Gas Imports at the national level (NUS-Z00).
+    Returns DataFrame with columns: period, date, mode, value_bcf.
+    """
     params = {
         "frequency": "monthly",
         "data[0]": "value",
+        "facets[duoarea][]": ["NUS-Z00"],  # National total
+        "start": start,
         "sort[0][column]": "period",
         "sort[0][direction]": "desc",
         "length": 5000,
     }
-    df = fetch_eia_data("petroleum/dril/data", params, api_key)
-    if "period" in df.columns:
-        df["date"] = pd.to_datetime(df["period"])
-    if "value" in df.columns:
-        df["value"] = pd.to_numeric(df["value"], errors="coerce")
-    return df
+    df = fetch_eia_data("natural-gas/move/poe1", params, api_key)
+
+    if df.empty:
+        return pd.DataFrame(columns=["period", "date", "mode", "value_bcf"])
+
+    df["value"] = pd.to_numeric(df["value"], errors="coerce")
+    df["date"] = pd.to_datetime(df["period"])
+
+    # Keep only volume rows (MMCF), not price rows ($/MCF)
+    df = df[df["units"] == "MMCF"].copy()
+
+    # Map process names to simple mode labels
+    mode_map = {
+        "Pipeline Imports": "Pipeline",
+        "Liquefied Natural Gas Imports": "LNG",
+        "Compressed Natural Gas Imports": "CNG",
+    }
+    df["mode"] = df["process-name"].map(mode_map)
+    df = df[df["mode"].notna()]
+
+    # Convert MMCF to Bcf
+    df["value_bcf"] = df["value"] / 1000
+
+    # Aggregate CNG into Pipeline (tiny volumes)
+    df.loc[df["mode"] == "CNG", "mode"] = "Pipeline"
+    df = df.groupby(["period", "date", "mode"], as_index=False).agg({"value_bcf": "sum"})
+
+    return df[["period", "date", "mode", "value_bcf"]]
 
 
 def fetch_eia_914_production(api_key: str) -> pd.DataFrame:

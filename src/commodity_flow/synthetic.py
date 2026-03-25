@@ -112,7 +112,9 @@ def generate_synthetic_natgas_imports() -> pd.DataFrame:
     dates = pd.date_range("2022-01-01", "2026-03-01", freq="MS")
     rows: list[dict] = []
 
-    for mode, base in [("Pipeline", 250), ("LNG", 35)]:
+    # Pipeline ~260 Bcf/mo (Canadian imports dominate).
+    # LNG ~2 Bcf/mo (US is now a net LNG exporter; imports near zero).
+    for mode, base in [("Pipeline", 260), ("LNG", 2)]:
         n = len(dates)
         seasonal = base * 0.15 * np.sin(2 * np.pi * np.arange(n) / 12 + np.pi)
         trend = np.linspace(0, base * 0.08, n)
@@ -146,15 +148,16 @@ def generate_synthetic_breakevens() -> pd.DataFrame:
     np.random.seed(55)
     quarters = pd.date_range("2022-01-01", "2026-01-01", freq="QS")
 
-    # Baseline breakevens ($/bbl) — approximate Dallas/KC Fed survey values
+    # Baseline breakevens ($/bbl) — Dallas/KC Fed Energy Survey Q4 2024 values.
+    # These are existing-well average breakevens; new-well breakevens are higher.
     basin_breakevens: dict[str, float] = {
-        "Permian": 38.0,
-        "Eagle Ford": 42.0,
-        "Bakken": 48.0,
-        "DJ/Niobrara": 45.0,
-        "Appalachian": 55.0,  # gas-weighted, higher oil breakeven
-        "Haynesville": 52.0,  # gas-focused
-        "Anadarko": 47.0,
+        "Permian": 40.0,
+        "Eagle Ford": 44.0,
+        "Bakken": 49.0,
+        "DJ/Niobrara": 46.0,
+        "Appalachian": 57.0,  # gas-weighted, higher oil-equivalent breakeven
+        "Haynesville": 54.0,  # gas-focused basin
+        "Anadarko": 48.0,
     }
 
     # Synthetic WTI prices (quarterly avg)
