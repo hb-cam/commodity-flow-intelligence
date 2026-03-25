@@ -12,6 +12,7 @@ This project combines:
 - **Wellhead economics** linking basin breakeven costs to shut-in risk
 - **Commodity futures overlays** to identify physical-vs-market divergence
 - **Real-time tanker tracking** via AIS vessel data
+- **Automated signal grading** with threshold-based alerts and trade idea generation
 
 All analysis runs on free, public data. No API keys are required to explore the notebooks -- synthetic data mirrors real EIA schemas with injected disruption patterns.
 
@@ -26,10 +27,20 @@ All three notebooks are configured to run in **Google Colab** with zero local se
 | :--- | :--- | :--- |
 | **Market Intelligence Briefing** | Risk dashboard, signal status, scenario analysis, trade ideas -- start here | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hb-cam/commodity-flow-intelligence/blob/main/notebooks/03_market_intelligence_briefing.ipynb) |
 | **Delivery Gap Analysis** | PADD import gaps, stock drawdowns, inventory analytics, NatGas/helium, composite scorecard, futures overlay, AIS tracking | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hb-cam/commodity-flow-intelligence/blob/main/notebooks/01_delivery_gap_analysis.ipynb) |
-| **Wellhead Economics** | Basin breakeven analysis, production-at-risk curves, supply elasticity, rig count trends, scorecard integration | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hb-cam/commodity-flow-intelligence/blob/main/notebooks/02_wellhead_economics.ipynb) |
+| **Wellhead Economics** | Basin breakeven analysis, production-at-risk curves, supply elasticity, rig count trends, double-signal assessment | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hb-cam/commodity-flow-intelligence/blob/main/notebooks/02_wellhead_economics.ipynb) |
 
 > [!TIP]
 > **Using live EIA data in Colab:** When the notebook opens, you will be prompted to enter your [EIA API key](https://www.eia.gov/opendata/register.php) (free, instant registration). Press Enter to skip and use synthetic data instead.
+
+#### How the notebooks connect
+
+The three notebooks form a layered intelligence product:
+
+- **NB03 (Briefing)** -- The headline. Start here for the current risk picture, signal status, scenario analysis, and trade ideas.
+- **NB01 (Delivery Gaps)** -- The evidence. Deep-dive into where the physical supply gaps are and how severe.
+- **NB02 (Wellhead Economics)** -- The root cause. Why gaps are forming: basin breakevens, shut-in risk, rig count declines.
+
+Each notebook includes an **executive summary** with dynamically computed metrics, **signal callouts** after key charts, and **actionable takeaways** that connect back to the briefing.
 
 #### Run locally
 ```bash
@@ -39,7 +50,7 @@ uv sync
 uv run jupyter lab
 ```
 
-Open either notebook from the `notebooks/` directory. Both ship with synthetic data so you can read and run them without any API keys.
+All three notebooks ship with synthetic data so you can read and run them without any API keys.
 
 ### Run Tests
 
@@ -56,10 +67,10 @@ uv run pytest tests/test_security.py      # Security checks
 
 | Path | Description |
 |------|-------------|
-| `notebooks/03_market_intelligence_briefing.ipynb` | **Start here.** Risk dashboard, signal status table, scenario analysis, basin profitability, inventory adequacy, futures divergence, helium supply chain, trade ideas |
-| `notebooks/01_delivery_gap_analysis.ipynb` | Deep-dive: PADD import gaps, stock drawdowns, inventory analytics (days of supply, seasonal comparison, SPR), NatGas/helium, composite scorecard + STEO overlay, futures z-scores, AIS tanker tracker |
-| `notebooks/02_wellhead_economics.ipynb` | Deep-dive: Basin breakevens vs WTI, production-at-risk, supply elasticity curve, rig count trends, output per rig, scorecard integration |
-| `src/commodity_flow/charts.py` | Plotly interactive charts -- scorecard, elasticity curve, days of supply, SPR, basin breakevens, risk dashboard, signal table |
+| `notebooks/03_market_intelligence_briefing.ipynb` | **Start here.** Interactive risk dashboard (plotly), signal status table, scenario analysis, basin profitability, inventory adequacy, futures divergence, helium supply chain, trade ideas |
+| `notebooks/01_delivery_gap_analysis.ipynb` | Deep-dive: executive summary, PADD import gaps with signal callouts, stock drawdowns, inventory analytics (days of supply, seasonal comparison, SPR), NatGas/helium, composite scorecard + STEO overlay, futures z-scores, AIS tanker tracker, key takeaways |
+| `notebooks/02_wellhead_economics.ipynb` | Deep-dive: executive summary, basin breakevens vs WTI, production-at-risk, supply elasticity curve, rig count trends, output per rig, double-signal assessment with trade ideas |
+| `src/commodity_flow/charts.py` | Plotly interactive charts -- scorecard, elasticity curve, days of supply, SPR, basin breakevens, futures divergence, risk dashboard, signal table |
 | `src/commodity_flow/eia.py` | EIA API v2 client -- crude imports, stocks, STEO projections, natural gas imports, product-level stocks, product supplied |
 | `src/commodity_flow/inventory.py` | Inventory analytics -- product-level stocks, days of supply, 5-year seasonal comparison, SPR vs commercial split |
 | `src/commodity_flow/analysis.py` | Z-score gap detection, composite scorecard with unit-alignment validation, breakeven analysis, supply curves |
@@ -118,7 +129,7 @@ AISSTREAM_API_KEY=your-key-here
 USE_LIVE_API=true
 ```
 
-Without keys, both notebooks run on synthetic data that mirrors real EIA schemas with injected disruption patterns for realistic analysis.
+Without keys, all three notebooks run on synthetic data that mirrors real EIA schemas with injected disruption patterns for realistic analysis.
 
 ## Key Concepts
 
@@ -137,6 +148,9 @@ Blends oil import z-scores with natural gas import z-scores into a single delive
 ### Wellhead Economics
 At prevailing WTI price, which producing basins are above or below breakeven? When price drops below marginal cost, wells shut in, supply contracts, and delivery gaps widen downstream. The **supply elasticity curve** sweeps WTI from $30 to $100 and plots cumulative production at risk.
 
+### Double Signal
+The most actionable signal in the analysis. When **both** delivery gaps are widening (imports below norm) **and** basins are shutting in (below breakeven), supply contraction is accelerating faster than the market expects. NB02 evaluates both legs and generates specific trade ideas when the double signal fires.
+
 ### Physical vs. Market Divergence
 The futures overlay compares physical delivery gap z-scores with commodity futures price z-scores. **Divergence** suggests the physical supply is tighter or looser than the market is pricing.
 
@@ -154,16 +168,16 @@ The futures overlay compares physical delivery gap z-scores with commodity futur
 | `test_analysis.py` | 12 | Z-scores, scorecard structure, breakeven classification, supply curves |
 | `test_eia.py` | 10 | URL construction, PADD normalization, STEO rename, schema guards |
 | `test_provenance.py` | 10 | Summary rendering, timestamps, live/synthetic tags |
+| `test_charts.py` | 8 | Plotly chart functions return Figures, signal table status values |
 | `test_futures.py` | 6 | Mocked yfinance, z-score computation, bounds |
 | `test_ais.py` | 6 | Position report parser, coordinate validation, bounding boxes |
-| `test_charts.py` | 8 | Plotly chart functions return Figures, signal table status values |
 | `test_refresh.py` | 5 | Full pipeline execution, all validations pass |
 
 ## Tech Stack
 
 - **Python:** pandas, numpy, matplotlib, plotly, requests, aiohttp, yfinance
 - **Data:** EIA API v2, AISstream.io, USGS, Dallas/KC Fed Surveys, Yahoo Finance
-- **Visualization:** Plotly (interactive) + Matplotlib (multi-panel grids)
+- **Visualization:** Plotly (interactive dashboards) + Matplotlib (multi-panel grids)
 - **Package management:** uv
 - **Testing:** pytest (168 tests -- integration, verification, security, charts, domain)
 
@@ -178,7 +192,7 @@ Contributions are welcome. Whether you are adding a new data source, improving t
 5. **PR**: Open a pull request with a clear description.
 
 > [!NOTE]
-> Both notebooks include a **data provenance table** that tracks which datasets are live vs synthetic, row counts, and date ranges. If you add a new data source, wire it through `provenance.py` and `refresh.py`.
+> All three notebooks include a **data provenance table** that tracks which datasets are live vs synthetic, row counts, and date ranges. If you add a new data source, wire it through `provenance.py` and `refresh.py`.
 
 ## Contact
 
