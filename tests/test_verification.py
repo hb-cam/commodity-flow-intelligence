@@ -168,20 +168,39 @@ class TestDprBenchmarks:
 
 
 class TestSteoSynthetic:
-    """Verify synthetic STEO projections."""
+    """Verify synthetic STEO projections match real EIA magnitudes."""
 
     def setup_method(self) -> None:
         self.df = synthetic.generate_synthetic_steo()
 
-    def test_conipus_in_range(self) -> None:
-        """US crude net imports (CONIPUS) historically 1-8 million bbl/d."""
+    def test_conipus_is_net_imports(self) -> None:
+        """CONIPUS = net imports, should be ~0.5-5 million bbl/d (NOT gross ~6.3)."""
         conipus = self.df[self.df["series_id"] == "CONIPUS"]["value"]
-        assert conipus.between(1.0, 10.0).all(), f"Range: {conipus.min():.1f}-{conipus.max():.1f}"
+        assert conipus.between(0.3, 5.0).all(), (
+            f"Range: {conipus.min():.1f}-{conipus.max():.1f} — should be net imports, not gross"
+        )
+
+    def test_papr_world_is_world_production(self) -> None:
+        """PAPR_WORLD = world production, should be ~100-115 million bbl/d."""
+        papr = self.df[self.df["series_id"] == "PAPR_WORLD"]["value"]
+        assert papr.between(95, 120).all(), (
+            f"Range: {papr.min():.1f}-{papr.max():.1f} — should be world production ~107M bbl/d"
+        )
+
+    def test_coprpus_is_us_production(self) -> None:
+        """COPRPUS = US crude production, should be ~12-15 million bbl/d."""
+        coprpus = self.df[self.df["series_id"] == "COPRPUS"]["value"]
+        assert coprpus.between(11, 16).all(), f"Range: {coprpus.min():.1f}-{coprpus.max():.1f}"
 
     def test_has_historical_and_forecast(self) -> None:
         """STEO should have both historical and forecast periods."""
         assert self.df["is_forecast"].any(), "No forecast rows"
         assert (~self.df["is_forecast"]).any(), "No historical rows"
+
+    def test_has_three_series(self) -> None:
+        """Should have CONIPUS, COPRPUS, and PAPR_WORLD."""
+        series = set(self.df["series_id"].unique())
+        assert {"CONIPUS", "COPRPUS", "PAPR_WORLD"} == series
 
 
 class TestScorecardOutputBounds:
@@ -227,6 +246,44 @@ class TestScorecardOutputBounds:
         sc = analysis.build_scorecard(df_imp, df_ng)
         # Should not raise; may be empty
         assert isinstance(sc, pd.DataFrame)
+
+
+class TestScorecardUnitAlignment:
+    """Verify scorecard catches unit mismatches via logging warnings."""
+
+    def test_warns_on_low_import_values(self, caplog) -> None:
+        """Import values in bbl instead of MBBL should trigger warning."""
+        import logging
+
+        df_imp = pd.DataFrame(
+            {
+                "date": pd.date_range("2024-01-01", periods=24, freq="MS"),
+                "duoarea": "PADD 1",
+                "value": 100.0,  # way too low for MBBL
+            }
+        )
+        df_ng = synthetic.generate_synthetic_natgas_imports()
+        with caplog.at_level(logging.WARNING, logger="commodity_flow.analysis"):
+            analysis.build_scorecard(df_imp, df_ng)
+        assert any("suspiciously low" in msg for msg in caplog.messages)
+
+    def test_warns_on_high_steo_conipus(self, caplog) -> None:
+        """CONIPUS > 8 should trigger 'not gross imports' warning."""
+        import logging
+
+        df_imp = synthetic.generate_synthetic_imports()
+        df_ng = synthetic.generate_synthetic_natgas_imports()
+        df_steo = pd.DataFrame(
+            {
+                "date": pd.date_range("2025-01-01", periods=12, freq="MS"),
+                "series_id": "CONIPUS",
+                "value": 9.0,  # gross imports, not net — triggers >8 warning
+                "is_forecast": False,
+            }
+        )
+        with caplog.at_level(logging.WARNING, logger="commodity_flow.analysis"):
+            analysis.build_scorecard(df_imp, df_ng, df_steo)
+        assert any("net imports" in msg.lower() for msg in caplog.messages)
 
 
 class TestZScoreArithmetic:

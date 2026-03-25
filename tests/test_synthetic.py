@@ -111,5 +111,5 @@ class TestGenerateSyntheticSteo:
 
     def test_series_ids(self) -> None:
         df = synthetic.generate_synthetic_steo()
-        assert "CONIPUS" in df["series_id"].values
-        assert "PAPR_WORLD" in df["series_id"].values
+        series = set(df["series_id"].unique())
+        assert {"CONIPUS", "COPRPUS", "PAPR_WORLD"} == series

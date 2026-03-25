@@ -251,23 +251,42 @@ def generate_synthetic_steo() -> pd.DataFrame:
     rows: list[dict] = []
     for d in dates:
         is_forecast = d >= pd.Timestamp("2026-04-01")
-        # US crude imports (million bbl/d) — declining trend
-        imports_base = 6.5 - 0.02 * ((d - pd.Timestamp("2024-01-01")).days / 30)
-        imports_noise = np.random.normal(0, 0.15) if not is_forecast else 0
-        imports_val = max(imports_base + imports_noise, 4.0)
+        months = (d - pd.Timestamp("2024-01-01")).days / 30
 
-        # US crude production (million bbl/d) — rising
-        prod_base = 13.0 + 0.03 * ((d - pd.Timestamp("2024-01-01")).days / 30)
-        prod_noise = np.random.normal(0, 0.1) if not is_forecast else 0
-        prod_val = prod_base + prod_noise
+        # CONIPUS = US crude NET imports (million bbl/d).
+        # Net = gross imports - exports. ~2-3M bbl/d, declining trend.
+        net_imports_base = 2.8 - 0.02 * months
+        net_imports_noise = np.random.normal(0, 0.2) if not is_forecast else 0
+        net_imports_val = max(net_imports_base + net_imports_noise, 0.5)
+
+        # COPRPUS = US crude production (million bbl/d) — ~13.5, slowly rising
+        us_prod_base = 13.2 + 0.02 * months
+        us_prod_noise = np.random.normal(0, 0.1) if not is_forecast else 0
+        us_prod_val = us_prod_base + us_prod_noise
+
+        # PAPR_WORLD = total world petroleum production (million bbl/d) — ~107-110
+        world_prod_base = 107.0 + 0.05 * months
+        world_prod_noise = np.random.normal(0, 0.3) if not is_forecast else 0
+        world_prod_val = world_prod_base + world_prod_noise
 
         rows.append(
             {
                 "date": d,
                 "period": d.strftime("%Y-%m"),
                 "series_id": "CONIPUS",
-                "series_name": "US Crude Oil Imports",
-                "value": round(imports_val, 2),
+                "series_name": "Crude Oil Net Imports",
+                "value": round(net_imports_val, 2),
+                "units": "million bbl/d",
+                "is_forecast": is_forecast,
+            }
+        )
+        rows.append(
+            {
+                "date": d,
+                "period": d.strftime("%Y-%m"),
+                "series_id": "COPRPUS",
+                "series_name": "U.S. Crude Oil Production",
+                "value": round(us_prod_val, 2),
                 "units": "million bbl/d",
                 "is_forecast": is_forecast,
             }
@@ -277,8 +296,8 @@ def generate_synthetic_steo() -> pd.DataFrame:
                 "date": d,
                 "period": d.strftime("%Y-%m"),
                 "series_id": "PAPR_WORLD",
-                "series_name": "World Crude Oil Production",
-                "value": round(prod_val, 2),
+                "series_name": "Total World Petroleum Production",
+                "value": round(world_prod_val, 2),
                 "units": "million bbl/d",
                 "is_forecast": is_forecast,
             }

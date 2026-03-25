@@ -19,7 +19,7 @@ class TestSyntheticInventory:
     def test_stocks_has_products(self) -> None:
         products = set(self.data["stocks"]["product"].unique())
         assert "EPC0" in products  # crude
-        assert "EPM0F" in products  # gasoline
+        assert "EPM0" in products  # total gasoline
         assert "EPD0" in products  # distillate
 
     def test_stocks_has_spr(self) -> None:

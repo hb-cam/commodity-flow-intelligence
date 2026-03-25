@@ -10,14 +10,26 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-# Key product codes for inventory tracking
+# Key product codes for inventory tracking.
+# EPM0 = Total Gasoline (finished + blending components) — the market metric.
+# EPM0F = Finished Motor Gasoline only (~14K MBBL vs ~241K for total).
 PRODUCTS: dict[str, str] = {
     "EPC0": "Crude Oil",
-    "EPM0F": "Finished Motor Gasoline",
+    "EPM0": "Total Gasoline",
     "EPD0": "Distillate Fuel Oil",
     "EPJK": "Jet Fuel",
     "EPLLPZ": "Propane/Propylene",
     "EPPR": "Residual Fuel Oil",
+}
+
+# For days-of-supply, map stock products to their consumption counterparts.
+# EPM0 stocks / EPM0F consumption = gasoline DoS (you consume finished, stock total).
+STOCK_TO_CONSUMPTION: dict[str, str] = {
+    "EPM0": "EPM0F",
+    "EPD0": "EPD0",
+    "EPJK": "EPJK",
+    "EPLLPZ": "EPLLPZ",
+    "EPPR": "EPPR",
 }
 
 # Product supplied codes (consumption proxy) — subset available weekly
@@ -117,14 +129,23 @@ def compute_days_of_supply(
     """Compute days-of-supply for each product.
 
     Days of supply = ending stocks (MBBL) / (product supplied (MBBL/D)).
-    Only computes for products that have both stocks and consumption data.
+    Uses STOCK_TO_CONSUMPTION mapping for products where the stock code
+    differs from the consumption code (e.g., EPM0 stocks / EPM0F consumption
+    for gasoline — you stock total, you consume finished).
     """
     # Commercial stocks only (exclude SPR and transit)
     commercial = df_stocks[df_stocks["stock_type"] == "commercial"].copy()
 
+    # Map stock products to their consumption counterparts
+    commercial["consumption_product"] = commercial["product"].map(STOCK_TO_CONSUMPTION)
+    # Fall back to same product code if not in mapping
+    commercial["consumption_product"] = commercial["consumption_product"].fillna(
+        commercial["product"]
+    )
+
     # Aggregate stocks per product per week
     stocks_weekly = (
-        commercial.groupby(["date", "product"])
+        commercial.groupby(["date", "product", "consumption_product"])
         .agg({"value": "sum", "product_name": "first"})
         .reset_index()
         .rename(columns={"value": "stocks_mbbl"})
@@ -135,12 +156,15 @@ def compute_days_of_supply(
         df_supplied.groupby(["date", "product"])
         .agg({"value": "mean", "product_name": "first"})
         .reset_index()
-        .rename(columns={"value": "supplied_mbbl_d"})
+        .rename(columns={"value": "supplied_mbbl_d", "product": "consumption_product"})
     )
 
-    # Merge on date + product
+    # Merge: stock product's consumption_product matches supplied's product code
     merged = stocks_weekly.merge(
-        supplied_weekly, on=["date", "product"], how="inner", suffixes=("", "_supplied")
+        supplied_weekly,
+        on=["date", "consumption_product"],
+        how="inner",
+        suffixes=("", "_supplied"),
     )
     merged["product_name"] = merged["product_name"].fillna(merged["product_name_supplied"])
     merged = merged.drop(columns=["product_name_supplied"], errors="ignore")
@@ -221,13 +245,13 @@ def generate_synthetic_inventory() -> dict[str, pd.DataFrame]:
     np.random.seed(44)
     dates = pd.date_range("2020-01-03", "2026-03-20", freq="W-FRI")
 
-    # Stock baselines (MBBL)
+    # Stock baselines (MBBL) — calibrated to EIA weekly data 2026-03
     stock_bases = {
-        "EPC0": {"commercial": 450_000, "spr": 400_000},
-        "EPM0F": {"commercial": 230_000},
+        "EPC0": {"commercial": 456_000, "spr": 415_000},
+        "EPM0": {"commercial": 241_000},  # Total gasoline (finished + blending)
         "EPD0": {"commercial": 120_000},
-        "EPJK": {"commercial": 42_000},
-        "EPLLPZ": {"commercial": 70_000},
+        "EPJK": {"commercial": 44_000},
+        "EPLLPZ": {"commercial": 73_000},
         "EPPR": {"commercial": 25_000},
     }
 

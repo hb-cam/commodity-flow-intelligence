@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 def compute_gap_score(series: pd.Series, window: int = 6) -> pd.Series:
@@ -40,6 +44,9 @@ def build_scorecard(
     Optionally includes STEO forward projections to extend the scorecard
     into forecast territory.
     """
+    # --- Input validation ---
+    _validate_scorecard_inputs(df_imports, df_natgas, df_steo)
+
     # Monthly crude imports — national total
     national_imports = df_imports.groupby("date")["value"].sum().sort_index()
     oil_z = compute_gap_score(national_imports, 12)
@@ -89,6 +96,65 @@ def build_scorecard(
         scorecard["is_forecast"] = False
 
     return scorecard
+
+
+def _validate_scorecard_inputs(
+    df_imports: pd.DataFrame,
+    df_natgas: pd.DataFrame,
+    df_steo: pd.DataFrame | None,
+) -> None:
+    """Validate data quality and unit alignment before building scorecard."""
+    # Imports: should have date + value columns, values in MBBL range
+    if not df_imports.empty:
+        monthly_total = df_imports.groupby("date")["value"].sum()
+        avg = monthly_total.mean()
+        if avg < 1000:
+            logger.warning(
+                "Import values avg %.0f — suspiciously low. "
+                "Expected ~150K-250K MBBL/month for national total. "
+                "Check units (MBBL vs bbl vs MBBL/D).",
+                avg,
+            )
+        if avg > 1_000_000:
+            logger.warning(
+                "Import values avg %.0f — suspiciously high. "
+                "Expected ~150K-250K MBBL/month. Check for double-counting.",
+                avg,
+            )
+
+    # NatGas: should have date + value_bcf, pipeline ~200-350 Bcf/mo
+    if not df_natgas.empty and "value_bcf" in df_natgas.columns:
+        ng_total = df_natgas.groupby("date")["value_bcf"].sum()
+        ng_avg = ng_total.mean()
+        if ng_avg < 50:
+            logger.warning(
+                "NatGas total avg %.1f Bcf — suspiciously low. "
+                "Expected ~200-350 Bcf/month. Check units (MMCF vs Bcf).",
+                ng_avg,
+            )
+
+    # STEO: CONIPUS should be net imports ~1-5 million bbl/d
+    if df_steo is not None and not df_steo.empty and "series_id" in df_steo.columns:
+        conipus = df_steo[df_steo["series_id"] == "CONIPUS"]["value"]
+        if not conipus.empty:
+            avg_conipus = conipus.mean()
+            if avg_conipus > 8:
+                logger.warning(
+                    "STEO CONIPUS avg %.2f — too high for net imports. "
+                    "CONIPUS is NET imports (imports - exports), not gross. "
+                    "Expected ~1-5 million bbl/d.",
+                    avg_conipus,
+                )
+
+        papr = df_steo[df_steo["series_id"] == "PAPR_WORLD"]["value"]
+        if not papr.empty:
+            avg_papr = papr.mean()
+            if avg_papr < 50:
+                logger.warning(
+                    "STEO PAPR_WORLD avg %.2f — too low for world production. "
+                    "Expected ~100-115 million bbl/d.",
+                    avg_papr,
+                )
 
 
 def compute_breakeven_status(df_breakevens: pd.DataFrame, wti_price: float) -> pd.DataFrame:
