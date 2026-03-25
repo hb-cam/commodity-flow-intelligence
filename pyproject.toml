@@ -1,0 +1,25 @@
+[project]
+name = "commodity-flow-intelligence"
+version = "0.1.0"
+description = "Physical commodity flow analytics -- delivery gaps, wellhead economics, derivative supply signals"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+    "pandas>=2.2",
+    "numpy>=1.26",
+    "matplotlib>=3.9",
+    "requests>=2.32",
+    "aiohttp>=3.9",
+    "jupyterlab>=4.2",
+    "ipykernel>=6.29",
+]
+
+[project.optional-dependencies]
+futures = [
+    "yfinance>=0.2",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
