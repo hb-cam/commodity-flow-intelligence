@@ -108,11 +108,24 @@ def _parse_position_report(data: dict) -> dict[str, Any] | None:
     pos = data.get("Message", {}).get("PositionReport", {})
     meta = data.get("MetaData", {})
 
+    lat = pos.get("Latitude")
+    lon = pos.get("Longitude")
+
+    # Reject entries with missing or out-of-range coordinates
+    if lat is None or lon is None:
+        return None
+    try:
+        lat, lon = float(lat), float(lon)
+    except (TypeError, ValueError):
+        return None
+    if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+        return None
+
     return {
         "mmsi": meta.get("MMSI"),
         "name": (meta.get("ShipName") or "").strip(),
-        "lat": pos.get("Latitude"),
-        "lon": pos.get("Longitude"),
+        "lat": lat,
+        "lon": lon,
         "speed_kn": pos.get("Sog"),
         "heading": pos.get("TrueHeading"),
         "destination": (meta.get("Destination") or "").strip(),

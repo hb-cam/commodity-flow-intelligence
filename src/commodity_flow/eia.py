@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+
 import pandas as pd
 import requests
 
 from commodity_flow.config import PADDS
+
+logger = logging.getLogger(__name__)
 
 # EIA duoarea codes use "-Z00" suffix for PADD regions
 _PADD_DUOAREA = ["R10-Z00", "R20-Z00", "R30-Z00", "R40-Z00", "R50-Z00"]
@@ -51,7 +55,16 @@ def _normalize_padd_columns(df: pd.DataFrame) -> pd.DataFrame:
     if "period" in df.columns:
         df["date"] = pd.to_datetime(df["period"])
     if "value" in df.columns:
+        raw_count = len(df)
         df["value"] = pd.to_numeric(df["value"], errors="coerce")
+        n_coerced = df["value"].isna().sum()
+        if n_coerced > 0:
+            logger.warning(
+                "EIA response: %d/%d rows had non-numeric 'value' (coerced to NaN). "
+                "May indicate withheld data (W) or suppressed values (--)",
+                n_coerced,
+                raw_count,
+            )
 
     return df
 
@@ -188,6 +201,12 @@ def fetch_natgas_imports(api_key: str, start: str = "2022-01") -> pd.DataFrame:
     df = df[df["units"] == "MMCF"].copy()
 
     # Map process names to simple mode labels
+    for required_col in ("process-name", "units"):
+        if required_col not in df.columns:
+            raise ValueError(
+                f"EIA natgas response missing '{required_col}' column. Got: {list(df.columns)}"
+            )
+
     mode_map = {
         "Pipeline Imports": "Pipeline",
         "Liquefied Natural Gas Imports": "LNG",
