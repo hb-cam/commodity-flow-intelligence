@@ -703,6 +703,190 @@ def build_signal_table(
     return pd.DataFrame(signals)
 
 
+def plot_distillate_sankey() -> go.Figure:
+    """Distillate supply chain Sankey: crude → refinery → products → end use.
+
+    Volumes are approximate annual US averages (million bbl/d) from EIA.
+    """
+    # Nodes: source → intermediate → product → end use
+    labels = [
+        # Sources (0-2)
+        "Domestic Crude (13.5M)",
+        "Imported Crude (6.3M)",
+        "NGL / Other (3.2M)",
+        # Refinery (3)
+        "US Refineries",
+        # Products (4-9)
+        "Motor Gasoline (9.0M)",
+        "Distillate Fuel Oil (5.0M)",
+        "Jet Fuel / Kerosene (1.7M)",
+        "Residual Fuel Oil (0.3M)",
+        "LPG / Propane (2.5M)",
+        "Other Products (4.0M)",
+        # Distillate end use (10-14)
+        "On-Highway Diesel (3.3M)",
+        "Heating Oil (0.5M)",
+        "Industrial / Farm (0.7M)",
+        "Railroad / Marine (0.3M)",
+        "Electric Power (0.2M)",
+    ]
+
+    # Links: source → target, value in million bbl/d
+    sources = [0, 1, 2, 3, 3, 3, 3, 3, 3, 5, 5, 5, 5, 5]
+    targets = [3, 3, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+    values = [13.5, 6.3, 3.2, 9.0, 5.0, 1.7, 0.3, 2.5, 4.0, 3.3, 0.5, 0.7, 0.3, 0.2]
+
+    # Colors by product type
+    link_colors = [
+        "rgba(37,99,235,0.3)",  # domestic crude
+        "rgba(37,99,235,0.2)",  # imported crude
+        "rgba(100,116,139,0.2)",  # NGL
+        "rgba(34,197,94,0.3)",  # gasoline
+        "rgba(234,88,12,0.4)",  # distillate (highlighted)
+        "rgba(124,58,237,0.3)",  # jet fuel
+        "rgba(100,116,139,0.2)",  # resid
+        "rgba(249,115,22,0.3)",  # LPG
+        "rgba(100,116,139,0.2)",  # other
+        "rgba(234,88,12,0.5)",  # diesel (highlighted)
+        "rgba(234,88,12,0.4)",  # heating oil
+        "rgba(234,88,12,0.3)",  # industrial
+        "rgba(234,88,12,0.3)",  # railroad
+        "rgba(234,88,12,0.2)",  # electric
+    ]
+
+    node_colors = (
+        ["#2563eb"] * 3  # sources
+        + ["#64748b"]  # refinery
+        + ["#22c55e", "#ea580c", "#7c3aed", "#94a3b8", "#f97316", "#94a3b8"]  # products
+        + ["#ea580c"] * 5  # distillate end use
+    )
+
+    fig = go.Figure(
+        go.Sankey(
+            arrangement="snap",
+            node=dict(
+                pad=15,
+                thickness=20,
+                line=dict(color="black", width=0.5),
+                label=labels,
+                color=node_colors,
+            ),
+            link=dict(source=sources, target=targets, value=values, color=link_colors),
+        )
+    )
+
+    fig.update_layout(
+        **LAYOUT_DEFAULTS,
+        title="US Petroleum Supply Chain — Distillate Flow Highlighted (million bbl/d)",
+        height=500,
+    )
+    return fig
+
+
+def plot_seasonal_decomposition(
+    series: pd.Series, period: int = 52, title: str = "Seasonal Decomposition"
+) -> go.Figure:
+    """STL decomposition of a time series into trend, seasonal, residual.
+
+    Uses robust STL (Loess) from statsmodels. Residual spikes indicate
+    structural breaks or supply disruptions not explained by normal patterns.
+    """
+    from statsmodels.tsa.seasonal import STL
+
+    stl = STL(series.dropna(), period=period, robust=True)
+    result = stl.fit()
+
+    fig = make_subplots(
+        rows=4,
+        cols=1,
+        shared_xaxes=True,
+        subplot_titles=["Observed", "Trend", "Seasonal", "Residual"],
+        vertical_spacing=0.05,
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=series.index,
+            y=series.values,
+            line=dict(color=COLORS["oil"], width=1),
+            name="Observed",
+            showlegend=False,
+        ),
+        row=1,
+        col=1,
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=result.trend.index,
+            y=result.trend.values,
+            line=dict(color=COLORS["composite"], width=2),
+            name="Trend",
+            showlegend=False,
+        ),
+        row=2,
+        col=1,
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=result.seasonal.index,
+            y=result.seasonal.values,
+            line=dict(color=COLORS["natgas"], width=1),
+            name="Seasonal",
+            showlegend=False,
+        ),
+        row=3,
+        col=1,
+    )
+
+    # Residuals with anomaly highlighting
+    residuals = result.resid
+    resid_std = residuals.std()
+    anomaly_mask = residuals.abs() > 2 * resid_std
+
+    fig.add_trace(
+        go.Scatter(
+            x=residuals.index,
+            y=residuals.values,
+            line=dict(color=COLORS["neutral"], width=1),
+            name="Residual",
+            showlegend=False,
+        ),
+        row=4,
+        col=1,
+    )
+
+    if anomaly_mask.any():
+        fig.add_trace(
+            go.Scatter(
+                x=residuals.index[anomaly_mask],
+                y=residuals.values[anomaly_mask],
+                mode="markers",
+                marker=dict(color=COLORS["critical"], size=6),
+                name="Anomaly (>2\u03c3)",
+                hovertemplate="Residual: %{y:,.0f}<extra>Anomaly</extra>",
+            ),
+            row=4,
+            col=1,
+        )
+
+    fig.add_hline(
+        y=2 * resid_std, row=4, col=1, line=dict(color=COLORS["critical"], dash="dot", width=0.8)
+    )
+    fig.add_hline(
+        y=-2 * resid_std, row=4, col=1, line=dict(color=COLORS["critical"], dash="dot", width=0.8)
+    )
+
+    fig.update_layout(
+        **LAYOUT_DEFAULTS,
+        title=title,
+        height=600,
+        showlegend=False,
+    )
+    return fig
+
+
 def _contiguous_ranges(idx: pd.DatetimeIndex) -> list[tuple]:
     """Find contiguous date ranges for shading."""
     if len(idx) == 0:

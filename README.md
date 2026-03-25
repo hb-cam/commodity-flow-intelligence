@@ -36,11 +36,76 @@ All three notebooks are configured to run in **Google Colab** with zero local se
 
 The three notebooks form a layered intelligence product:
 
+```mermaid
+graph LR
+    NB03["<b>NB03: Briefing</b><br/>Risk dashboard<br/>Signal status<br/>Trade ideas"] --> NB01["<b>NB01: Delivery Gaps</b><br/>PADD import gaps<br/>Inventory adequacy<br/>NatGas / Helium"]
+    NB03 --> NB02["<b>NB02: Wellhead Economics</b><br/>Basin breakevens<br/>Shut-in risk<br/>Supply elasticity"]
+    NB01 -->|"gap score"| NB02
+    NB02 -->|"shut-in count"| NB03
+
+    style NB03 fill:#dc2626,color:#fff,stroke:#991b1b
+    style NB01 fill:#2563eb,color:#fff,stroke:#1e40af
+    style NB02 fill:#16a34a,color:#fff,stroke:#15803d
+```
+
 - **NB03 (Briefing)** -- The headline. Start here for the current risk picture, signal status, scenario analysis, and trade ideas.
 - **NB01 (Delivery Gaps)** -- The evidence. Deep-dive into where the physical supply gaps are and how severe.
 - **NB02 (Wellhead Economics)** -- The root cause. Why gaps are forming: basin breakevens, shut-in risk, rig count declines.
 
 Each notebook includes an **executive summary** with dynamically computed metrics, **signal callouts** after key charts, and **actionable takeaways** that connect back to the briefing.
+
+#### Causal chain
+
+The core analytical thesis traces a supply-side cascade from price to physical delivery:
+
+```mermaid
+graph TD
+    A["WTI Price Decline"] --> B["Basins Below Breakeven"]
+    B --> C["Well Shut-ins"]
+    C --> D["Rig Count Decline"]
+    D --> E["Production Contraction"]
+    E --> F["Crude Import Gaps Widen"]
+    F --> G["Inventory Draws"]
+    G --> H["Days of Supply Shrink"]
+    H --> I["Spot Price Spike"]
+
+    E --> J["NatGas Throughput Falls"]
+    J --> K["Helium Co-production Collapse"]
+    K --> L["Helium Shortage<br/>(MRI, Semiconductors, Quantum)"]
+
+    I -.->|"feedback"| A
+
+    style A fill:#f59e0b,color:#000
+    style I fill:#dc2626,color:#fff
+    style L fill:#7c3aed,color:#fff
+```
+
+#### Data flow
+
+```mermaid
+graph LR
+    EIA["EIA API v2"] --> |"crude imports<br/>stocks, STEO<br/>natgas, products"| LIB["commodity_flow<br/>library"]
+    YF["Yahoo Finance"] --> |"WTI, NG, RBOB, HO"| LIB
+    AIS["AISstream.io"] --> |"tanker positions"| LIB
+    USGS["USGS / Fed Surveys"] --> |"helium, breakevens"| LIB
+
+    LIB --> |"z-scores<br/>gap detection"| AN["analysis.py"]
+    LIB --> |"days of supply<br/>seasonal, SPR"| INV["inventory.py"]
+    LIB --> |"futures z-scores"| FUT["futures.py"]
+
+    AN --> CHT["charts.py<br/>(Plotly)"]
+    INV --> CHT
+    FUT --> CHT
+
+    CHT --> NB["Notebooks<br/>+ Signal Table<br/>+ Trade Ideas"]
+
+    LIB --> VAL["refresh.py<br/>20 validation checks"]
+    VAL --> |"provenance"| NB
+
+    style EIA fill:#2563eb,color:#fff
+    style NB fill:#dc2626,color:#fff
+    style VAL fill:#f59e0b,color:#000
+```
 
 #### Run locally
 ```bash
