@@ -20,11 +20,12 @@ All analysis runs on free, public data. No API keys are required to explore the 
 ### Run the Notebooks
 
 #### Run in Colab
-Both notebooks are configured to run in **Google Colab** with zero local setup.
+All three notebooks are configured to run in **Google Colab** with zero local setup.
 
 | Notebook | Focus | Link |
 | :--- | :--- | :--- |
-| **Delivery Gap Analysis** | PADD import gaps, stock drawdowns, inventory analytics (days of supply, seasonal comparison, SPR), NatGas/helium correlation, composite scorecard, futures overlay, AIS tanker tracking | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hb-cam/commodity-flow-intelligence/blob/main/notebooks/01_delivery_gap_analysis.ipynb) |
+| **Market Intelligence Briefing** | Risk dashboard, signal status, scenario analysis, trade ideas -- start here | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hb-cam/commodity-flow-intelligence/blob/main/notebooks/03_market_intelligence_briefing.ipynb) |
+| **Delivery Gap Analysis** | PADD import gaps, stock drawdowns, inventory analytics, NatGas/helium, composite scorecard, futures overlay, AIS tracking | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hb-cam/commodity-flow-intelligence/blob/main/notebooks/01_delivery_gap_analysis.ipynb) |
 | **Wellhead Economics** | Basin breakeven analysis, production-at-risk curves, supply elasticity, rig count trends, scorecard integration | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hb-cam/commodity-flow-intelligence/blob/main/notebooks/02_wellhead_economics.ipynb) |
 
 > [!TIP]
@@ -43,7 +44,7 @@ Open either notebook from the `notebooks/` directory. Both ship with synthetic d
 ### Run Tests
 
 ```bash
-uv run pytest -v                          # All 160 tests
+uv run pytest -v                          # All 168 tests
 uv run pytest tests/test_integration.py   # Cross-dataset consistency & calculations
 uv run pytest tests/test_verification.py  # Domain sanity checks
 uv run pytest tests/test_security.py      # Security checks
@@ -55,8 +56,10 @@ uv run pytest tests/test_security.py      # Security checks
 
 | Path | Description |
 |------|-------------|
-| `notebooks/01_delivery_gap_analysis.ipynb` | PADD import gaps, stock drawdowns, **inventory analytics** (days of supply by product, 5-year seasonal comparison, SPR vs commercial), NatGas/helium, composite scorecard + STEO forward overlay, futures z-scores, AIS tanker tracker, derivative commodity map |
-| `notebooks/02_wellhead_economics.ipynb` | Basin breakevens vs WTI, production-at-risk, supply elasticity curve, rig count trends, output per rig, scorecard integration |
+| `notebooks/03_market_intelligence_briefing.ipynb` | **Start here.** Risk dashboard, signal status table, scenario analysis, basin profitability, inventory adequacy, futures divergence, helium supply chain, trade ideas |
+| `notebooks/01_delivery_gap_analysis.ipynb` | Deep-dive: PADD import gaps, stock drawdowns, inventory analytics (days of supply, seasonal comparison, SPR), NatGas/helium, composite scorecard + STEO overlay, futures z-scores, AIS tanker tracker |
+| `notebooks/02_wellhead_economics.ipynb` | Deep-dive: Basin breakevens vs WTI, production-at-risk, supply elasticity curve, rig count trends, output per rig, scorecard integration |
+| `src/commodity_flow/charts.py` | Plotly interactive charts -- scorecard, elasticity curve, days of supply, SPR, basin breakevens, risk dashboard, signal table |
 | `src/commodity_flow/eia.py` | EIA API v2 client -- crude imports, stocks, STEO projections, natural gas imports, product-level stocks, product supplied |
 | `src/commodity_flow/inventory.py` | Inventory analytics -- product-level stocks, days of supply, 5-year seasonal comparison, SPR vs commercial split |
 | `src/commodity_flow/analysis.py` | Z-score gap detection, composite scorecard with unit-alignment validation, breakeven analysis, supply curves |
@@ -65,7 +68,7 @@ uv run pytest tests/test_security.py      # Security checks
 | `src/commodity_flow/synthetic.py` | Synthetic data generators baselined to real EIA/USGS/Fed survey data |
 | `src/commodity_flow/provenance.py` | Data provenance tracker -- logs live vs synthetic source per dataset |
 | `src/commodity_flow/refresh.py` | Data refresh pipeline with 20 built-in validation checks |
-| `tests/` | 160 tests across 11 files -- see [Testing](#testing) |
+| `tests/` | 168 tests across 12 files -- see [Testing](#testing) |
 
 ## Data Sources
 
@@ -139,7 +142,7 @@ The futures overlay compares physical delivery gap z-scores with commodity futur
 
 ## Testing
 
-160 tests across 11 files, organized by concern:
+168 tests across 12 files, organized by concern:
 
 | File | Tests | What It Covers |
 |------|-------|----------------|
@@ -153,14 +156,16 @@ The futures overlay compares physical delivery gap z-scores with commodity futur
 | `test_provenance.py` | 10 | Summary rendering, timestamps, live/synthetic tags |
 | `test_futures.py` | 6 | Mocked yfinance, z-score computation, bounds |
 | `test_ais.py` | 6 | Position report parser, coordinate validation, bounding boxes |
+| `test_charts.py` | 8 | Plotly chart functions return Figures, signal table status values |
 | `test_refresh.py` | 5 | Full pipeline execution, all validations pass |
 
 ## Tech Stack
 
-- **Python:** pandas, numpy, matplotlib, requests, aiohttp, yfinance
+- **Python:** pandas, numpy, matplotlib, plotly, requests, aiohttp, yfinance
 - **Data:** EIA API v2, AISstream.io, USGS, Dallas/KC Fed Surveys, Yahoo Finance
+- **Visualization:** Plotly (interactive) + Matplotlib (multi-panel grids)
 - **Package management:** uv
-- **Testing:** pytest (160 tests -- integration, verification, security, domain)
+- **Testing:** pytest (168 tests -- integration, verification, security, charts, domain)
 
 ## Contributing
 
@@ -169,7 +174,7 @@ Contributions are welcome. Whether you are adding a new data source, improving t
 1. **Fork & Clone**: Fork the repository and clone locally.
 2. **Setup**: Run `uv sync` to install all dependencies.
 3. **Branch**: Create a feature branch (`git checkout -b feature/your-feature`).
-4. **Test**: Run `uv run pytest -v` before submitting. All 160 tests should pass.
+4. **Test**: Run `uv run pytest -v` before submitting. All 168 tests should pass.
 5. **PR**: Open a pull request with a clear description.
 
 > [!NOTE]
