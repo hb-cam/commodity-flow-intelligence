@@ -61,7 +61,7 @@ class RefreshPipeline:
             self.provenance.record(
                 DataSource(
                     "Crude imports",
-                    "Simulated (published values)",
+                    "Synthetic",
                     "synthetic generator",
                     False,
                     rows=len(df),
@@ -87,7 +87,7 @@ class RefreshPipeline:
             self.provenance.record(
                 DataSource(
                     "Weekly stocks",
-                    "Simulated (published values)",
+                    "Synthetic",
                     "synthetic generator",
                     False,
                     rows=len(df),
@@ -112,7 +112,7 @@ class RefreshPipeline:
             self.provenance.record(
                 DataSource(
                     "STEO projections",
-                    "Simulated (published values)",
+                    "Synthetic",
                     "synthetic generator",
                     False,
                     rows=len(df),
@@ -138,7 +138,7 @@ class RefreshPipeline:
             self.provenance.record(
                 DataSource(
                     "NatGas imports",
-                    "Simulated (published values)",
+                    "Synthetic",
                     "synthetic generator",
                     False,
                     rows=len(df),
@@ -151,7 +151,7 @@ class RefreshPipeline:
         self.provenance.record(
             DataSource(
                 "Helium supply/demand",
-                "USGS MCS (manual entry)",
+                "Synthetic (USGS MCS)",
                 "synthetic generator",
                 False,
                 rows=len(df),
@@ -165,7 +165,7 @@ class RefreshPipeline:
         self.provenance.record(
             DataSource(
                 "Basin breakevens",
-                "Dallas/KC Fed Surveys (manual entry)",
+                "Synthetic (Dallas/KC Fed)",
                 "synthetic generator",
                 False,
                 rows=len(df),
@@ -179,7 +179,7 @@ class RefreshPipeline:
         self.provenance.record(
             DataSource(
                 "Drilling productivity",
-                "EIA DPR (manual entry)",
+                "Synthetic (EIA DPR)",
                 "synthetic generator",
                 False,
                 rows=len(df),
