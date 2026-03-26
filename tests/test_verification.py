@@ -1,7 +1,7 @@
 """Domain sanity checks — magnitude bounds, distribution, cross-validation.
 
 These tests formalize the ad-hoc verification checks that were run interactively
-against known EIA/USGS/Fed benchmarks. They run against synthetic data by default
+against known EIA/USGS/Fed benchmarks. They run against offline data by default
 (no API key needed) and catch configuration drift that would silently corrupt
 the z-score signals.
 """
@@ -9,14 +9,14 @@ the z-score signals.
 import numpy as np
 import pandas as pd
 
-from commodity_flow import analysis, config, synthetic
+from commodity_flow import analysis, config, offline
 
 
 class TestImportMagnitudes:
-    """Verify synthetic import baselines match known US petroleum flows."""
+    """Verify offline import baselines match known US petroleum flows."""
 
     def setup_method(self) -> None:
-        self.df = synthetic.generate_synthetic_imports()
+        self.df = offline.generate_offline_imports()
 
     def test_national_monthly_total_in_range(self) -> None:
         """US gross crude imports: ~150K-250K MBBL/month (5-8M bbl/d)."""
@@ -42,14 +42,14 @@ class TestImportMagnitudes:
         config_total = sum(config.PADD_IMPORT_BASELINES.values())
         monthly = self.df.groupby("date")["value"].sum().mean()
         ratio = monthly / config_total
-        assert 0.8 <= ratio <= 1.3, f"Synthetic/config ratio: {ratio:.2f}"
+        assert 0.8 <= ratio <= 1.3, f"Offline/config ratio: {ratio:.2f}"
 
 
 class TestStockMagnitudes:
-    """Verify synthetic stock baselines match known US petroleum inventories."""
+    """Verify offline stock baselines match known US petroleum inventories."""
 
     def setup_method(self) -> None:
-        self.df = synthetic.generate_synthetic_stocks()
+        self.df = offline.generate_offline_stocks()
 
     def test_national_total_in_range(self) -> None:
         """US total petroleum stocks: ~700K-1.5M MBBL across 5 PADDs."""
@@ -62,11 +62,11 @@ class TestStockMagnitudes:
         padd_avg = self.df.groupby("duoarea")["value"].mean()
         assert padd_avg.idxmax() == "PADD 3"
 
-    def test_config_baselines_match_synthetic(self) -> None:
-        """Synthetic generator should produce values near config baselines."""
-        synth_avg = self.df.groupby("duoarea")["value"].mean()
+    def test_config_baselines_match_offline(self) -> None:
+        """Offline generator should produce values near config baselines."""
+        offline_avg = self.df.groupby("duoarea")["value"].mean()
         for padd, baseline in config.PADD_STOCK_BASELINES.items():
-            ratio = synth_avg[padd] / baseline
+            ratio = offline_avg[padd] / baseline
             assert 0.7 <= ratio <= 1.5, f"{padd} ratio {ratio:.2f}"
 
 
@@ -74,7 +74,7 @@ class TestNatgasMagnitudes:
     """Verify natgas import baselines reflect US as net LNG exporter."""
 
     def setup_method(self) -> None:
-        self.df = synthetic.generate_synthetic_natgas_imports()
+        self.df = offline.generate_offline_natgas_imports()
 
     def test_pipeline_dominates_lng(self) -> None:
         """Pipeline imports ~260 Bcf/mo vs LNG ~2 Bcf/mo."""
@@ -97,7 +97,7 @@ class TestHeliumBenchmarks:
     """Verify helium data against USGS Mineral Commodity Summaries."""
 
     def setup_method(self) -> None:
-        self.df = synthetic.generate_synthetic_helium()
+        self.df = offline.generate_offline_helium()
 
     def test_us_production_range(self) -> None:
         """US helium production: ~45-60 Mcm/yr."""
@@ -122,7 +122,7 @@ class TestBreakevenBenchmarks:
     """Verify basin breakevens against Dallas/KC Fed survey ranges."""
 
     def setup_method(self) -> None:
-        self.df = synthetic.generate_synthetic_breakevens()
+        self.df = offline.generate_offline_breakevens()
         self.latest = self.df.sort_values("date").groupby("basin").last()
 
     def test_permian_cheapest(self) -> None:
@@ -147,7 +147,7 @@ class TestDprBenchmarks:
     """Verify DPR baselines against EIA Drilling Productivity Report."""
 
     def setup_method(self) -> None:
-        self.df = synthetic.generate_synthetic_dpr()
+        self.df = offline.generate_offline_dpr()
 
     def test_permian_has_most_rigs(self) -> None:
         """Permian should have highest rig count."""
@@ -167,11 +167,11 @@ class TestDprBenchmarks:
             assert 100 <= prod <= 600, f"{basin}: {prod} bbl/d/rig"
 
 
-class TestSteoSynthetic:
-    """Verify synthetic STEO projections match real EIA magnitudes."""
+class TestSteoOffline:
+    """Verify offline STEO projections match real EIA magnitudes."""
 
     def setup_method(self) -> None:
-        self.df = synthetic.generate_synthetic_steo()
+        self.df = offline.generate_offline_steo()
 
     def test_conipus_is_net_imports(self) -> None:
         """CONIPUS = net imports, should be ~0.5-5 million bbl/d (NOT gross ~6.3)."""
@@ -207,9 +207,9 @@ class TestScorecardOutputBounds:
     """Verify scorecard z-scores are bounded and well-formed."""
 
     def setup_method(self) -> None:
-        df_imports = synthetic.generate_synthetic_imports()
-        df_natgas = synthetic.generate_synthetic_natgas_imports()
-        df_steo = synthetic.generate_synthetic_steo()
+        df_imports = offline.generate_offline_imports()
+        df_natgas = offline.generate_offline_natgas_imports()
+        df_steo = offline.generate_offline_steo()
         self.scorecard = analysis.build_scorecard(df_imports, df_natgas, df_steo)
 
     def test_composite_bounded(self) -> None:
@@ -262,7 +262,7 @@ class TestScorecardUnitAlignment:
                 "value": 100.0,  # way too low for MBBL
             }
         )
-        df_ng = synthetic.generate_synthetic_natgas_imports()
+        df_ng = offline.generate_offline_natgas_imports()
         with caplog.at_level(logging.WARNING, logger="commodity_flow.analysis"):
             analysis.build_scorecard(df_imp, df_ng)
         assert any("suspiciously low" in msg for msg in caplog.messages)
@@ -271,8 +271,8 @@ class TestScorecardUnitAlignment:
         """CONIPUS > 8 should trigger 'not gross imports' warning."""
         import logging
 
-        df_imp = synthetic.generate_synthetic_imports()
-        df_ng = synthetic.generate_synthetic_natgas_imports()
+        df_imp = offline.generate_offline_imports()
+        df_ng = offline.generate_offline_natgas_imports()
         df_steo = pd.DataFrame(
             {
                 "date": pd.date_range("2025-01-01", periods=12, freq="MS"),

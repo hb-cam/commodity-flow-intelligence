@@ -2,7 +2,7 @@
 
 import numpy as np
 import pandas as pd
-from commodity_flow import analysis, synthetic
+from commodity_flow import analysis, offline
 
 
 class TestComputeGapScore:
@@ -48,8 +48,8 @@ class TestDetectGaps:
 
 class TestBuildScorecard:
     def test_returns_dataframe_with_composite(self) -> None:
-        df_imports = synthetic.generate_synthetic_imports()
-        df_natgas = synthetic.generate_synthetic_natgas_imports()
+        df_imports = offline.generate_offline_imports()
+        df_natgas = offline.generate_offline_natgas_imports()
         result = analysis.build_scorecard(df_imports, df_natgas)
         assert "composite_gap_score" in result.columns
         assert "oil_import_z" in result.columns
@@ -57,9 +57,9 @@ class TestBuildScorecard:
         assert len(result) > 0
 
     def test_with_steo_adds_forecast(self) -> None:
-        df_imports = synthetic.generate_synthetic_imports()
-        df_natgas = synthetic.generate_synthetic_natgas_imports()
-        df_steo = synthetic.generate_synthetic_steo()
+        df_imports = offline.generate_offline_imports()
+        df_natgas = offline.generate_offline_natgas_imports()
+        df_steo = offline.generate_offline_steo()
         result = analysis.build_scorecard(df_imports, df_natgas, df_steo)
         assert "is_forecast" in result.columns
         assert result["is_forecast"].any()
@@ -67,27 +67,27 @@ class TestBuildScorecard:
 
 class TestComputeBreakevenStatus:
     def test_classifies_basins(self) -> None:
-        df = synthetic.generate_synthetic_breakevens()
+        df = offline.generate_offline_breakevens()
         result = analysis.compute_breakeven_status(df, wti_price=70.0)
         assert "status" in result.columns
         assert "margin_usd_bbl" in result.columns
         assert set(result["status"].unique()).issubset({"profitable", "marginal", "at risk"})
 
     def test_high_price_all_profitable(self) -> None:
-        df = synthetic.generate_synthetic_breakevens()
+        df = offline.generate_offline_breakevens()
         result = analysis.compute_breakeven_status(df, wti_price=200.0)
         assert result["profitable"].all()
 
     def test_low_price_none_profitable(self) -> None:
-        df = synthetic.generate_synthetic_breakevens()
+        df = offline.generate_offline_breakevens()
         result = analysis.compute_breakeven_status(df, wti_price=10.0)
         assert not result["profitable"].any()
 
 
 class TestProductionAtRiskCurve:
     def test_returns_sweep(self) -> None:
-        df_be = synthetic.generate_synthetic_breakevens()
-        df_dpr = synthetic.generate_synthetic_dpr()
+        df_be = offline.generate_offline_breakevens()
+        df_dpr = offline.generate_offline_dpr()
         result = analysis.production_at_risk_curve(df_be, df_dpr)
         assert "wti_price" in result.columns
         assert "pct_at_risk" in result.columns
@@ -95,8 +95,8 @@ class TestProductionAtRiskCurve:
 
     def test_monotonic_risk(self) -> None:
         """Lower prices should mean more production at risk."""
-        df_be = synthetic.generate_synthetic_breakevens()
-        df_dpr = synthetic.generate_synthetic_dpr()
+        df_be = offline.generate_offline_breakevens()
+        df_dpr = offline.generate_offline_dpr()
         result = analysis.production_at_risk_curve(df_be, df_dpr)
         # pct_at_risk should be non-increasing as price rises
         pct = result.sort_values("wti_price")["pct_at_risk"].values

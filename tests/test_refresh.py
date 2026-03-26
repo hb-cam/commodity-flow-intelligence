@@ -3,8 +3,8 @@
 from commodity_flow.refresh import RefreshPipeline
 
 
-class TestRefreshPipelineSynthetic:
-    """Run refresh pipeline in synthetic mode (no API key needed)."""
+class TestRefreshPipelineOffline:
+    """Run refresh pipeline in offline mode (no API key needed)."""
 
     def setup_method(self) -> None:
         self.pipeline = RefreshPipeline()

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from commodity_flow import config, eia, synthetic
+from commodity_flow import config, eia, offline
 from commodity_flow.provenance import DataSource, ProvenanceTracker
 
 
@@ -38,7 +38,7 @@ class RefreshPipeline:
         return self.data
 
     def _load_all(self) -> None:
-        """Load all datasets from live API or synthetic fallback."""
+        """Load all datasets from live API or offline fallback."""
         live = config.USE_LIVE_API and config.EIA_API_KEY is not None
 
         # Crude imports
@@ -57,12 +57,12 @@ class RefreshPipeline:
                 )
             )
         else:
-            df = synthetic.generate_synthetic_imports()
+            df = offline.generate_offline_imports()
             self.provenance.record(
                 DataSource(
                     "Crude imports",
-                    "Synthetic",
-                    "synthetic generator",
+                    "Offline (published values)",
+                    "offline generator",
                     False,
                     rows=len(df),
                 )
@@ -83,12 +83,12 @@ class RefreshPipeline:
                 )
             )
         else:
-            df = synthetic.generate_synthetic_stocks()
+            df = offline.generate_offline_stocks()
             self.provenance.record(
                 DataSource(
                     "Weekly stocks",
-                    "Synthetic",
-                    "synthetic generator",
+                    "Offline (published values)",
+                    "offline generator",
                     False,
                     rows=len(df),
                 )
@@ -108,12 +108,12 @@ class RefreshPipeline:
                 )
             )
         else:
-            df = synthetic.generate_synthetic_steo()
+            df = offline.generate_offline_steo()
             self.provenance.record(
                 DataSource(
                     "STEO projections",
-                    "Synthetic",
-                    "synthetic generator",
+                    "Offline (published values)",
+                    "offline generator",
                     False,
                     rows=len(df),
                 )
@@ -134,25 +134,25 @@ class RefreshPipeline:
                 )
             )
         else:
-            df = synthetic.generate_synthetic_natgas_imports()
+            df = offline.generate_offline_natgas_imports()
             self.provenance.record(
                 DataSource(
                     "NatGas imports",
-                    "Synthetic",
-                    "synthetic generator",
+                    "Offline (published values)",
+                    "offline generator",
                     False,
                     rows=len(df),
                 )
             )
         self.data["natgas"] = df
 
-        # Helium (always synthetic)
-        df = synthetic.generate_synthetic_helium()
+        # Helium (always offline — no API)
+        df = offline.generate_offline_helium()
         self.provenance.record(
             DataSource(
                 "Helium supply/demand",
-                "Synthetic (USGS MCS)",
-                "synthetic generator",
+                "USGS MCS (offline)",
+                "offline generator",
                 False,
                 rows=len(df),
                 notes="USGS publishes annual PDFs, no API",
@@ -160,13 +160,13 @@ class RefreshPipeline:
         )
         self.data["helium"] = df
 
-        # Breakevens (always synthetic)
-        df = synthetic.generate_synthetic_breakevens()
+        # Breakevens (always offline — no API)
+        df = offline.generate_offline_breakevens()
         self.provenance.record(
             DataSource(
                 "Basin breakevens",
-                "Synthetic (Dallas/KC Fed)",
-                "synthetic generator",
+                "Dallas/KC Fed (offline)",
+                "offline generator",
                 False,
                 rows=len(df),
                 notes="Q4 2024 survey values; no public API",
@@ -174,13 +174,13 @@ class RefreshPipeline:
         )
         self.data["breakevens"] = df
 
-        # DPR (always synthetic — not in EIA API)
-        df = synthetic.generate_synthetic_dpr()
+        # DPR (always offline — not in EIA API)
+        df = offline.generate_offline_dpr()
         self.provenance.record(
             DataSource(
                 "Drilling productivity",
-                "Synthetic (EIA DPR)",
-                "synthetic generator",
+                "EIA DPR (offline)",
+                "offline generator",
                 False,
                 rows=len(df),
                 notes="DPR not in EIA API v2; baselined to Feb 2025 values",

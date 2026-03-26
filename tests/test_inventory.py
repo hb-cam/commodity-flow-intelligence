@@ -4,13 +4,13 @@ from commodity_flow.inventory import (
     compute_days_of_supply,
     compute_seasonal_comparison,
     compute_spr_status,
-    generate_synthetic_inventory,
+    generate_offline_inventory,
 )
 
 
-class TestSyntheticInventory:
+class TestOfflineInventory:
     def setup_method(self) -> None:
-        self.data = generate_synthetic_inventory()
+        self.data = generate_offline_inventory()
 
     def test_returns_stocks_and_supplied(self) -> None:
         assert "stocks" in self.data
@@ -41,7 +41,7 @@ class TestSyntheticInventory:
 
 class TestDaysOfSupply:
     def setup_method(self) -> None:
-        data = generate_synthetic_inventory()
+        data = generate_offline_inventory()
         self.dos = compute_days_of_supply(data["stocks"], data["supplied"])
 
     def test_returns_days_column(self) -> None:
@@ -58,7 +58,7 @@ class TestDaysOfSupply:
 
 class TestSeasonalComparison:
     def setup_method(self) -> None:
-        data = generate_synthetic_inventory()
+        data = generate_offline_inventory()
         self.seasonal = compute_seasonal_comparison(data["stocks"])
 
     def test_has_deviation_columns(self) -> None:
@@ -67,7 +67,7 @@ class TestSeasonalComparison:
         assert "current" in self.seasonal.columns
 
     def test_deviation_bounded(self) -> None:
-        """Deviations should be within +-50% for synthetic data."""
+        """Deviations should be within +-50% for offline data."""
         valid = self.seasonal["deviation_pct"].dropna()
         if not valid.empty:
             assert valid.abs().mean() < 50
@@ -75,7 +75,7 @@ class TestSeasonalComparison:
 
 class TestSprStatus:
     def setup_method(self) -> None:
-        data = generate_synthetic_inventory()
+        data = generate_offline_inventory()
         self.spr = compute_spr_status(data["stocks"])
 
     def test_has_spr_and_commercial(self) -> None:

@@ -34,7 +34,7 @@ PADD_DUOAREA_CODES: dict[str, str] = {
     "PADD 5": "R50-Z00",
 }
 
-# Approximate import baselines (thousand barrels/month) for synthetic data.
+# Approximate import baselines (thousand barrels/month) for offline data.
 # Includes ALL modes (pipeline, tanker, barge, rail). PADD 2 dominates
 # due to Canadian pipeline crude (~47% of US imports).
 PADD_IMPORT_BASELINES: dict[str, int] = {
@@ -45,7 +45,7 @@ PADD_IMPORT_BASELINES: dict[str, int] = {
     "PADD 5": 35_000,
 }
 
-# Approximate stock baselines (thousand barrels, total petroleum) for synthetic data
+# Approximate stock baselines (thousand barrels, total petroleum) for offline data
 PADD_STOCK_BASELINES: dict[str, int] = {
     "PADD 1": 250_000,
     "PADD 2": 200_000,

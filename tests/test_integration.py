@@ -10,12 +10,12 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from commodity_flow import analysis, synthetic
+from commodity_flow import analysis, offline
 from commodity_flow.inventory import (
     compute_days_of_supply,
     compute_seasonal_comparison,
     compute_spr_status,
-    generate_synthetic_inventory,
+    generate_offline_inventory,
 )
 
 
@@ -25,16 +25,16 @@ from commodity_flow.inventory import (
 
 
 class TestScorecardDisruptionDetection:
-    """Verify the scorecard actually detects the synthetic disruption.
+    """Verify the scorecard actually detects the offline data disruption.
 
-    Synthetic data injects a delivery gap in Oct 2025 - Feb 2026.
+    Offline data injects a delivery gap in Oct 2025 - Feb 2026.
     The scorecard should produce negative z-scores in that window.
     """
 
     def setup_method(self) -> None:
-        self.df_imports = synthetic.generate_synthetic_imports()
-        self.df_natgas = synthetic.generate_synthetic_natgas_imports()
-        self.df_steo = synthetic.generate_synthetic_steo()
+        self.df_imports = offline.generate_offline_imports()
+        self.df_natgas = offline.generate_offline_natgas_imports()
+        self.df_steo = offline.generate_offline_steo()
         self.scorecard = analysis.build_scorecard(self.df_imports, self.df_natgas, self.df_steo)
         self.actual = self.scorecard[~self.scorecard["is_forecast"]]
 
@@ -71,9 +71,9 @@ class TestScorecardSteoForecast:
     """Verify STEO forecast extension is physically sensible."""
 
     def setup_method(self) -> None:
-        self.df_imports = synthetic.generate_synthetic_imports()
-        self.df_natgas = synthetic.generate_synthetic_natgas_imports()
-        self.df_steo = synthetic.generate_synthetic_steo()
+        self.df_imports = offline.generate_offline_imports()
+        self.df_natgas = offline.generate_offline_natgas_imports()
+        self.df_steo = offline.generate_offline_steo()
         self.scorecard = analysis.build_scorecard(self.df_imports, self.df_natgas, self.df_steo)
 
     def test_forecast_dates_are_future(self) -> None:
@@ -181,9 +181,9 @@ class TestDaysOfSupplyArithmetic:
         if not dos.empty:
             assert dos["days_of_supply"].isna().all(), "Zero consumption should give NaN, not inf"
 
-    def test_synthetic_dos_matches_manual(self) -> None:
-        """Spot-check synthetic DoS against manual calculation."""
-        data = generate_synthetic_inventory()
+    def test_offline_dos_matches_manual(self) -> None:
+        """Spot-check offline DoS against manual calculation."""
+        data = generate_offline_inventory()
         dos = compute_days_of_supply(data["stocks"], data["supplied"])
         # Pick distillate — should be stocks ~120K / consumption ~3600 ≈ 33 days
         dist = dos[dos["product"] == "EPD0"]["days_of_supply"].median()
@@ -200,7 +200,7 @@ class TestSeasonalComparisonEdgeCases:
 
     def test_less_than_5_years_history(self) -> None:
         """Should still work with <5 years, just fewer comparison points."""
-        data = generate_synthetic_inventory()
+        data = generate_offline_inventory()
         # Trim to 2 years
         recent = data["stocks"][data["stocks"]["date"] >= "2024-01-01"]
         result = compute_seasonal_comparison(recent, years_back=5)
@@ -208,8 +208,8 @@ class TestSeasonalComparisonEdgeCases:
         assert isinstance(result, pd.DataFrame)
 
     def test_deviation_sigma_distribution(self) -> None:
-        """Deviation sigma should be roughly normally distributed for synthetic data."""
-        data = generate_synthetic_inventory()
+        """Deviation sigma should be roughly normally distributed for offline data."""
+        data = generate_offline_inventory()
         result = compute_seasonal_comparison(data["stocks"])
         sigma = result["deviation_sigma"].dropna()
         if len(sigma) > 10:
@@ -227,7 +227,7 @@ class TestSprConsistency:
     """Verify SPR + commercial = total, and SPR share is derived correctly."""
 
     def test_spr_plus_commercial_equals_total(self) -> None:
-        data = generate_synthetic_inventory()
+        data = generate_offline_inventory()
         spr = compute_spr_status(data["stocks"])
         valid = spr.dropna()
         computed_total = valid["spr_mbbl"] + valid["commercial_mbbl"]
@@ -235,7 +235,7 @@ class TestSprConsistency:
         assert diff.max() < 1.0, "SPR + Commercial != Total"
 
     def test_spr_share_matches_values(self) -> None:
-        data = generate_synthetic_inventory()
+        data = generate_offline_inventory()
         spr = compute_spr_status(data["stocks"])
         valid = spr.dropna()
         computed_pct = valid["spr_mbbl"] / valid["total_mbbl"] * 100
@@ -253,8 +253,8 @@ class TestCrossDatasetConsistency:
 
     def test_gross_imports_exceed_net(self) -> None:
         """Our gross imports should always exceed STEO net imports."""
-        df_imports = synthetic.generate_synthetic_imports()
-        df_steo = synthetic.generate_synthetic_steo()
+        df_imports = offline.generate_offline_imports()
+        df_steo = offline.generate_offline_steo()
 
         # Gross: monthly MBBL total → daily million bbl/d
         monthly = df_imports.groupby("date")["value"].sum()
@@ -273,14 +273,14 @@ class TestCrossDatasetConsistency:
 
     def test_steo_production_exceeds_imports(self) -> None:
         """US production should exceed net imports (US is a net producer)."""
-        df_steo = synthetic.generate_synthetic_steo()
+        df_steo = offline.generate_offline_steo()
         prod = df_steo[df_steo["series_id"] == "COPRPUS"]["value"]
         imports = df_steo[df_steo["series_id"] == "CONIPUS"]["value"]
         assert prod.mean() > imports.mean(), "US production should exceed net imports"
 
     def test_world_production_exceeds_us(self) -> None:
         """World production should be ~8x US production."""
-        df_steo = synthetic.generate_synthetic_steo()
+        df_steo = offline.generate_offline_steo()
         world = df_steo[df_steo["series_id"] == "PAPR_WORLD"]["value"].mean()
         us = df_steo[df_steo["series_id"] == "COPRPUS"]["value"].mean()
         ratio = world / us
@@ -288,7 +288,7 @@ class TestCrossDatasetConsistency:
 
     def test_stock_changes_bounded(self) -> None:
         """Week-over-week stock changes should not exceed 10% of total."""
-        data = generate_synthetic_inventory()
+        data = generate_offline_inventory()
         stocks = data["stocks"][data["stocks"]["stock_type"] == "commercial"]
         for product in stocks["product"].unique():
             sub = stocks[stocks["product"] == product].sort_values("date")
@@ -309,10 +309,10 @@ class TestInputDataRobustness:
 
     def test_duplicate_rows_in_imports(self) -> None:
         """Duplicate rows should not cause scorecard to blow up."""
-        df = synthetic.generate_synthetic_imports()
+        df = offline.generate_offline_imports()
         # Double every row
         df_dup = pd.concat([df, df], ignore_index=True)
-        df_ng = synthetic.generate_synthetic_natgas_imports()
+        df_ng = offline.generate_offline_natgas_imports()
         sc = analysis.build_scorecard(df_dup, df_ng)
         # Should still produce bounded z-scores (duplicates inflate groupby sum)
         assert isinstance(sc, pd.DataFrame)
@@ -324,19 +324,19 @@ class TestInputDataRobustness:
 
     def test_missing_padd_in_one_period(self) -> None:
         """Missing a PADD in one month should not crash the scorecard."""
-        df = synthetic.generate_synthetic_imports()
+        df = offline.generate_offline_imports()
         # Drop all PADD 4 data for one month
         mask = (df["duoarea"] == "PADD 4") & (df["date"] == df["date"].min())
         df_gap = df[~mask]
-        df_ng = synthetic.generate_synthetic_natgas_imports()
+        df_ng = offline.generate_offline_natgas_imports()
         sc = analysis.build_scorecard(df_gap, df_ng)
         assert isinstance(sc, pd.DataFrame)
 
     def test_out_of_order_dates(self) -> None:
         """Shuffled date order should produce same scorecard."""
-        df = synthetic.generate_synthetic_imports()
+        df = offline.generate_offline_imports()
         df_shuffled = df.sample(frac=1, random_state=42)
-        df_ng = synthetic.generate_synthetic_natgas_imports()
+        df_ng = offline.generate_offline_natgas_imports()
         sc_normal = analysis.build_scorecard(df, df_ng)
         sc_shuffled = analysis.build_scorecard(df_shuffled, df_ng)
         actual_n = sc_normal[~sc_normal["is_forecast"]]
@@ -369,7 +369,7 @@ class TestInputDataRobustness:
     def test_empty_imports_returns_empty_scorecard(self) -> None:
         """Empty imports should not crash."""
         df_empty = pd.DataFrame(columns=["date", "duoarea", "value"])
-        df_ng = synthetic.generate_synthetic_natgas_imports()
+        df_ng = offline.generate_offline_natgas_imports()
         sc = analysis.build_scorecard(df_empty, df_ng)
         assert isinstance(sc, pd.DataFrame)
 
@@ -384,7 +384,7 @@ class TestDimensionalAnalysis:
 
     def test_import_mbbl_to_daily_mbd(self) -> None:
         """Monthly MBBL / 30 / 1000 should give reasonable million bbl/d."""
-        df = synthetic.generate_synthetic_imports()
+        df = offline.generate_offline_imports()
         monthly = df.groupby("date")["value"].sum()
         daily_mbd = monthly / 30 / 1000
         assert daily_mbd.between(4.0, 9.0).all(), (
@@ -393,7 +393,7 @@ class TestDimensionalAnalysis:
 
     def test_natgas_bcf_in_range(self) -> None:
         """Total natgas imports should be 200-400 Bcf/month."""
-        df = synthetic.generate_synthetic_natgas_imports()
+        df = offline.generate_offline_natgas_imports()
         monthly = df.groupby("date")["value_bcf"].sum()
         assert monthly.between(150, 450).all(), (
             f"NatGas total [{monthly.min():.0f}, {monthly.max():.0f}] outside [150, 450] Bcf"
@@ -401,7 +401,7 @@ class TestDimensionalAnalysis:
 
     def test_steo_units_are_million_bbl_d(self) -> None:
         """All STEO values should be in million bbl/d scale."""
-        df = synthetic.generate_synthetic_steo()
+        df = offline.generate_offline_steo()
         for sid, (lo, hi) in {
             "CONIPUS": (0.3, 5),
             "COPRPUS": (11, 16),
@@ -414,7 +414,7 @@ class TestDimensionalAnalysis:
 
     def test_dos_range_by_product(self) -> None:
         """Days of supply should be in product-specific ranges."""
-        data = generate_synthetic_inventory()
+        data = generate_offline_inventory()
         dos = compute_days_of_supply(data["stocks"], data["supplied"])
         expected_ranges = {
             "EPM0": (15, 40),  # total gasoline
@@ -430,7 +430,7 @@ class TestDimensionalAnalysis:
 
     def test_breakeven_plus_margin_equals_wti(self) -> None:
         """Breakeven + margin should equal the WTI reference price."""
-        df_be = synthetic.generate_synthetic_breakevens()
+        df_be = offline.generate_offline_breakevens()
         status = analysis.compute_breakeven_status(df_be, wti_price=70.0)
         for _, row in status.iterrows():
             computed_wti = row["breakeven_usd_bbl"] + row["margin_usd_bbl"]
@@ -440,8 +440,8 @@ class TestDimensionalAnalysis:
 
     def test_production_at_risk_sums_correctly(self) -> None:
         """At extreme prices, production at risk should match expectations."""
-        df_be = synthetic.generate_synthetic_breakevens()
-        df_dpr = synthetic.generate_synthetic_dpr()
+        df_be = offline.generate_offline_breakevens()
+        df_dpr = offline.generate_offline_dpr()
         curve = analysis.production_at_risk_curve(df_be, df_dpr, wti_range=(20, 120))
 
         # At $120, all basins profitable → 0% at risk

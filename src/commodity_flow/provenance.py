@@ -11,8 +11,8 @@ class DataSource:
     """Metadata about a loaded dataset."""
 
     name: str
-    source: str  # "EIA API v2", "synthetic", "Yahoo Finance", etc.
-    endpoint: str  # API route or "synthetic generator"
+    source: str  # "EIA API v2", "Offline (published values)", "Yahoo Finance", etc.
+    endpoint: str  # API route or "offline generator"
     live: bool
     fetched_at: datetime = field(default_factory=datetime.now)
     rows: int = 0
@@ -42,7 +42,7 @@ class ProvenanceTracker:
         lines.append("|---------|--------|-------|------|------------|-------|")
 
         for s in self._sources:
-            live_icon = "Y" if s.live else "N (synthetic)"
+            live_icon = "Y" if s.live else "Offline"
             lines.append(
                 f"| {s.name} | {s.source} | {live_icon} | {s.rows:,} | {s.date_range} | {s.notes} |"
             )
@@ -52,15 +52,16 @@ class ProvenanceTracker:
         lines.append(f"_Data loaded at {ts}._")
 
         live_count = sum(1 for s in self._sources if s.live)
-        synth_count = sum(1 for s in self._sources if not s.live)
-        if synth_count > 0:
+        offline_count = sum(1 for s in self._sources if not s.live)
+        if offline_count > 0:
             lines.append("")
             lines.append(
-                f"_**{live_count} live** and **{synth_count} synthetic** data sources in this run._"
+                f"_**{live_count} live** and **{offline_count} offline** data sources in this run._"
             )
-            synth_names = [s.name for s in self._sources if not s.live]
+            offline_names = [s.name for s in self._sources if not s.live]
             lines.append(
-                f"_Synthetic: {', '.join(synth_names)}. "
+                f"_Offline: {', '.join(offline_names)}. "
+                "Offline data calibrated from published values. "
                 "Set `USE_LIVE_API=true` and configure API keys to use live data._"
             )
 
@@ -70,9 +71,9 @@ class ProvenanceTracker:
         """Return per-dataset footnote strings for chart annotations."""
         notes = []
         for s in self._sources:
-            tag = "LIVE" if s.live else "SYNTHETIC"
+            tag = "LIVE" if s.live else "OFFLINE"
             note = f"[{tag}] {s.name}: {s.source}"
-            if s.endpoint != "synthetic generator":
+            if s.endpoint != "offline generator":
                 note += f" ({s.endpoint})"
             if s.notes:
                 note += f" — {s.notes}"

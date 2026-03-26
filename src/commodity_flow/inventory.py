@@ -236,8 +236,8 @@ def compute_spr_status(df_stocks: pd.DataFrame) -> pd.DataFrame:
     return merged
 
 
-def generate_synthetic_inventory() -> dict[str, pd.DataFrame]:
-    """Generate synthetic inventory data for offline analysis.
+def generate_offline_inventory() -> dict[str, pd.DataFrame]:
+    """Generate offline inventory data for analysis without API keys.
 
     Returns dict with keys: stocks, supplied, suitable for passing to
     compute_days_of_supply and compute_seasonal_comparison.

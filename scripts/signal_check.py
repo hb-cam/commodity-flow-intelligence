@@ -47,12 +47,12 @@ def main() -> None:
             df_prod_stocks = inventory.fetch_product_stocks(config.EIA_API_KEY)
             df_prod_supplied = inventory.fetch_product_supplied(config.EIA_API_KEY)
         except Exception as e:
-            print(f"Inventory fetch failed: {e}. Using synthetic.")
-            inv_data = inventory.generate_synthetic_inventory()
+            print(f"Inventory fetch failed: {e}. Using offline data.")
+            inv_data = inventory.generate_offline_inventory()
             df_prod_stocks = inv_data["stocks"]
             df_prod_supplied = inv_data["supplied"]
     else:
-        inv_data = inventory.generate_synthetic_inventory()
+        inv_data = inventory.generate_offline_inventory()
         df_prod_stocks = inv_data["stocks"]
         df_prod_supplied = inv_data["supplied"]
 

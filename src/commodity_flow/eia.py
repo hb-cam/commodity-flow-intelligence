@@ -43,7 +43,7 @@ def fetch_eia_data(route: str, params: dict, api_key: str) -> pd.DataFrame:
 
 
 def _normalize_padd_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Normalize EIA response columns to match synthetic data schema."""
+    """Normalize EIA response columns to match offline data schema."""
     df = df.copy()
 
     # Map area-name to duoarea PADD key
@@ -88,7 +88,7 @@ def fetch_crude_imports_by_padd(
     df = fetch_eia_data("petroleum/move/imp", params, api_key)
     df = _normalize_padd_columns(df)
 
-    # Filter to MBBL (absolute, not per-day) to match synthetic schema
+    # Filter to MBBL (absolute, not per-day) to match offline data schema
     if "units" in df.columns:
         df = df[df["units"] == "MBBL"]
 
@@ -152,7 +152,7 @@ def fetch_steo_projections(api_key: str) -> pd.DataFrame:
     if "value" in df.columns:
         df["value"] = pd.to_numeric(df["value"], errors="coerce")
     # Normalize column name: live API uses camelCase "seriesId",
-    # synthetic uses "series_id"
+    # offline data uses "series_id"
     if "seriesId" in df.columns:
         df = df.rename(columns={"seriesId": "series_id"})
     return df
@@ -164,11 +164,11 @@ def fetch_drilling_productivity(api_key: str) -> pd.DataFrame:
     Note: The DPR is not available as a direct EIA API v2 endpoint.
     EIA publishes DPR as spreadsheets at eia.gov/petroleum/drilling/.
     This function raises NotImplementedError to signal callers to use
-    synthetic data instead.
+    offline data instead.
     """
     raise NotImplementedError(
         "DPR is not available via EIA API v2. "
-        "Use synthetic.generate_synthetic_dpr() or download "
+        "Use offline.generate_offline_dpr() or download "
         "spreadsheets from https://www.eia.gov/petroleum/drilling/"
     )
 

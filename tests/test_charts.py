@@ -2,26 +2,26 @@
 
 import plotly.graph_objects as go
 
-from commodity_flow import analysis, charts, synthetic
+from commodity_flow import analysis, charts, offline
 from commodity_flow.inventory import (
     compute_days_of_supply,
     compute_spr_status,
-    generate_synthetic_inventory,
+    generate_offline_inventory,
 )
 
 
 def _make_fixtures():
     """Build all data fixtures for chart tests."""
-    df_imports = synthetic.generate_synthetic_imports()
-    df_natgas = synthetic.generate_synthetic_natgas_imports()
-    df_steo = synthetic.generate_synthetic_steo()
-    df_breakevens = synthetic.generate_synthetic_breakevens()
-    df_dpr = synthetic.generate_synthetic_dpr()
+    df_imports = offline.generate_offline_imports()
+    df_natgas = offline.generate_offline_natgas_imports()
+    df_steo = offline.generate_offline_steo()
+    df_breakevens = offline.generate_offline_breakevens()
+    df_dpr = offline.generate_offline_dpr()
     scorecard = analysis.build_scorecard(df_imports, df_natgas, df_steo)
     current_wti = 70.0
     status = analysis.compute_breakeven_status(df_breakevens, current_wti)
     risk_curve = analysis.production_at_risk_curve(df_breakevens, df_dpr)
-    inv = generate_synthetic_inventory()
+    inv = generate_offline_inventory()
     df_dos = compute_days_of_supply(inv["stocks"], inv["supplied"])
     df_spr = compute_spr_status(inv["stocks"])
     return {
