@@ -130,7 +130,7 @@ uv run python scripts/signal_check.py
 ### Run Tests
 
 ```bash
-uv run pytest -v                          # All 168 tests
+uv run pytest -v                          # All 206 tests
 uv run pytest tests/test_integration.py   # Cross-dataset consistency & calculations
 uv run pytest tests/test_verification.py  # Domain sanity checks
 uv run pytest tests/test_security.py      # Security checks
@@ -156,7 +156,7 @@ uv run pytest tests/test_security.py      # Security checks
 | `src/commodity_flow/refresh.py` | Data refresh pipeline with 20 built-in validation checks |
 | `scripts/signal_check.py` | Daily signal check script -- fetches data, validates, computes signals, outputs JSON. Used by GitHub Actions and runnable locally. |
 | `.github/workflows/daily-signal-check.yml` | GitHub Action: runs weekday mornings after EIA data release. Opens a GitHub issue when alert thresholds are breached. |
-| `tests/` | 168 tests across 12 files -- see [Testing](#testing) |
+| `tests/` | 206 tests across 13 files -- see [Testing](#testing) |
 
 ## Data Sources
 
@@ -233,10 +233,11 @@ The futures overlay compares physical delivery gap z-scores with commodity futur
 
 ## Testing
 
-168 tests across 12 files, organized by concern:
+206 tests across 13 files, organized by concern:
 
 | File | Tests | What It Covers |
 |------|-------|----------------|
+| `test_unit_coherence.py` | 38 | Unit annotations, conversion arithmetic, dimensional algebra, cross-source schema agreement, provenance labels, round-trip inverses, chart axis labels, column naming conventions |
 | `test_integration.py` | 30 | Cross-dataset consistency, calculation verification, input robustness, dimensional analysis |
 | `test_verification.py` | 33 | Domain sanity checks against EIA/USGS/Fed benchmarks, unit-alignment warnings |
 | `test_offline.py` | 21 | Generator shapes, determinism, disruption injection |
@@ -258,7 +259,7 @@ The futures overlay compares physical delivery gap z-scores with commodity futur
 - **Decomposition:** STL (Seasonal-Trend-Loess) via statsmodels for seasonal pattern analysis
 - **Package management:** uv
 - **CI/CD:** GitHub Actions daily signal check with automated issue creation
-- **Testing:** pytest (168 tests -- integration, verification, security, charts, domain)
+- **Testing:** pytest (206 tests -- integration, verification, security, charts, domain)
 
 ## Contributing
 
@@ -267,7 +268,7 @@ Contributions are welcome. Whether you are adding a new data source, improving t
 1. **Fork & Clone**: Fork the repository and clone locally.
 2. **Setup**: Run `uv sync` to install all dependencies.
 3. **Branch**: Create a feature branch (`git checkout -b feature/your-feature`).
-4. **Test**: Run `uv run pytest -v` before submitting. All 168 tests should pass.
+4. **Test**: Run `uv run pytest -v` before submitting. All 206 tests should pass.
 5. **PR**: Open a pull request with a clear description.
 
 > [!NOTE]
