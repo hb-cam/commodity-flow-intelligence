@@ -58,7 +58,7 @@ async def track_tankers(
                     logger.info("Connected to AISstream.io, tracking tankers...")
 
                     async for msg in ws:
-                        if msg.type == aiohttp.WSMsgType.TEXT:
+                        if msg.type in (aiohttp.WSMsgType.TEXT, aiohttp.WSMsgType.BINARY):
                             data = json.loads(msg.data)
                             entry = _parse_position_report(data)
                             if entry:
