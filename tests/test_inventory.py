@@ -89,3 +89,19 @@ class TestSprStatus:
 
     def test_spr_positive(self) -> None:
         assert (self.spr["spr_mbbl"].dropna() > 0).all()
+
+    def test_no_duplicate_dates(self) -> None:
+        """Each date should appear exactly once — no double-counting from total rows."""
+        assert not self.spr["date"].duplicated().any(), "Duplicate dates in SPR status"
+
+    def test_spr_plus_commercial_equals_total(self) -> None:
+        valid = self.spr.dropna()
+        diff = (valid["spr_mbbl"] + valid["commercial_mbbl"] - valid["total_mbbl"]).abs()
+        assert diff.max() < 1.0, f"SPR + Commercial != Total (max diff: {diff.max()})"
+
+    def test_spr_magnitude_is_mbbl(self) -> None:
+        """SPR should be in MBBL (~300K-700K range), not barrels or millions."""
+        median_spr = self.spr["spr_mbbl"].dropna().median()
+        assert 200_000 < median_spr < 800_000, (
+            f"SPR median {median_spr:,.0f} — expected 200K-800K MBBL"
+        )

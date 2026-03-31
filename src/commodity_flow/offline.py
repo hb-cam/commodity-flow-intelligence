@@ -18,14 +18,17 @@ from commodity_flow.config import (
 )
 
 
-def generate_offline_imports() -> pd.DataFrame:
+def generate_offline_imports(start: str = "2017-01-01") -> pd.DataFrame:
     """Generate offline monthly crude imports by PADD (thousand barrels).
 
-    Shapes based on actual EIA magnitudes. Injects a delivery gap in
+    Shapes based on actual EIA magnitudes. Default start of 2017 reflects the
+    current structural regime (post-shale ramp, post-export ban lift, imports
+    stabilized at refinery-configuration floor). Provides 9+ annual cycles
+    for stable STL seasonal decomposition. Injects a delivery gap in
     late 2025 / early 2026 simulating a disruption.
     """
     np.random.seed(42)
-    dates = pd.date_range("2022-01-01", "2026-03-01", freq="MS")
+    dates = pd.date_range(start, "2026-03-01", freq="MS")
     rows: list[dict] = []
 
     for padd, base in PADD_IMPORT_BASELINES.items():

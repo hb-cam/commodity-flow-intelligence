@@ -216,15 +216,28 @@ def plot_elasticity_curve(risk_curve: pd.DataFrame, current_wti: float) -> go.Fi
 
 
 def plot_days_of_supply(df_dos: pd.DataFrame) -> go.Figure:
-    """Days of supply by product with danger thresholds."""
-    products = sorted(df_dos["product"].unique())
+    """Days of supply by product with danger thresholds.
+
+    Shows from Jan 1 of the prior year through the latest data point,
+    giving a full seasonal cycle plus year-to-date context.
+    """
+    if not df_dos.empty:
+        latest = df_dos["date"].max()
+        cutoff = pd.Timestamp(year=latest.year - 1, month=1, day=1)
+        df_recent = df_dos[df_dos["date"] >= cutoff].copy()
+        latest_date = latest.strftime("%b %d, %Y")
+    else:
+        df_recent = df_dos
+        latest_date = "N/A"
+
+    products = sorted(df_recent["product"].unique())
     n = len(products)
     fig = make_subplots(
         rows=1,
         cols=min(n, 4),
         subplot_titles=[
-            df_dos[df_dos["product"] == p]["product_name"].iloc[0]
-            if "product_name" in df_dos.columns
+            df_recent[df_recent["product"] == p]["product_name"].iloc[0]
+            if "product_name" in df_recent.columns
             else p
             for p in products[:4]
         ],
@@ -240,7 +253,7 @@ def plot_days_of_supply(df_dos: pd.DataFrame) -> go.Figure:
     }
 
     for i, prod in enumerate(products[:4]):
-        sub = df_dos[df_dos["product"] == prod].sort_values("date")
+        sub = df_recent[df_recent["product"] == prod].sort_values("date")
         col = i + 1
         c = prod_colors.get(prod, COLORS["neutral"])
 
@@ -270,7 +283,7 @@ def plot_days_of_supply(df_dos: pd.DataFrame) -> go.Figure:
 
     fig.update_layout(
         **LAYOUT_DEFAULTS,
-        title="Days of Supply by Product",
+        title=f"Days of Supply by Product — {latest.year - 1} to Present (data through {latest_date})",
         height=350,
     )
     return fig
@@ -348,12 +361,12 @@ def plot_spr_status(df_spr: pd.DataFrame) -> go.Figure:
     fig.add_trace(
         go.Scatter(
             x=df_spr["date"],
-            y=df_spr["commercial_mbbl"],
+            y=df_spr["commercial_mbbl"] / 1000,
             fill="tozeroy",
             fillcolor="rgba(37,99,235,0.3)",
             line=dict(color=COLORS["commercial"], width=1),
             name="Commercial",
-            hovertemplate="Commercial: %{y:,.0f} MBBL<extra></extra>",
+            hovertemplate="Commercial: %{y:,.1f}M bbl<extra></extra>",
         ),
         row=1,
         col=1,
@@ -362,12 +375,12 @@ def plot_spr_status(df_spr: pd.DataFrame) -> go.Figure:
     fig.add_trace(
         go.Scatter(
             x=df_spr["date"],
-            y=df_spr["total_mbbl"],
+            y=df_spr["total_mbbl"] / 1000,
             fill="tonexty",
             fillcolor="rgba(249,115,22,0.3)",
             line=dict(color=COLORS["spr"], width=1),
             name="SPR",
-            hovertemplate="Total: %{y:,.0f} MBBL<extra></extra>",
+            hovertemplate="Total: %{y:,.1f}M bbl<extra></extra>",
         ),
         row=1,
         col=1,
@@ -392,8 +405,11 @@ def plot_spr_status(df_spr: pd.DataFrame) -> go.Figure:
         y=50, row=1, col=2, line=dict(color=COLORS["neutral"], dash="dash"), annotation_text="50%"
     )
 
-    fig.update_layout(**LAYOUT_DEFAULTS, height=400, title="Strategic Petroleum Reserve Status")
-    fig.update_yaxes(title_text="MBBL", row=1, col=1)
+    fig.update_layout(
+        **LAYOUT_DEFAULTS, height=400,
+        title="Strategic Petroleum Reserve",
+    )
+    fig.update_yaxes(title_text="Million bbl", row=1, col=1)
     fig.update_yaxes(title_text="SPR %", row=1, col=2)
     return fig
 
@@ -447,6 +463,11 @@ def plot_futures_divergence(df_futures: pd.DataFrame) -> go.Figure:
     """Commodity futures z-scores — divergence from physical gap."""
     fig = go.Figure()
 
+    # Compute period bounds across all symbols
+    date_min = df_futures["date"].min()
+    date_max = df_futures["date"].max()
+    period_str = f"{date_min.strftime('%b %d, %Y')} to {date_max.strftime('%b %d, %Y')}"
+
     symbol_colors = {
         "CL=F": COLORS["oil"],
         "NG=F": COLORS["natgas"],
@@ -476,11 +497,21 @@ def plot_futures_divergence(df_futures: pd.DataFrame) -> go.Figure:
 
     fig.update_layout(
         **LAYOUT_DEFAULTS,
-        title="Commodity Futures Z-Scores — Physical vs Market",
+        title=f"Commodity Futures Z-Scores (data through {date_max.strftime('%b %d, %Y')})",
         yaxis_title="Price Z-Score",
         legend=dict(orientation="h", y=-0.15),
         height=400,
     )
+
+    fig.add_annotation(
+        text=f"Z-scores computed over {period_str} using trailing mean and standard deviation of closing prices.",
+        xref="paper", yref="paper",
+        x=0, y=-0.18,
+        showarrow=False,
+        font=dict(size=12, color="#334155"),
+        align="left",
+    )
+
     return fig
 
 
@@ -492,22 +523,37 @@ def plot_risk_dashboard(
     current_wti: float,
 ) -> go.Figure:
     """Executive risk dashboard — 2x2 grid for NB03."""
+    # Compute actual dates for subplot titles
+    actual = scorecard[~scorecard["is_forecast"]]
+    recent = actual.tail(52) if len(actual) > 52 else actual
+
+    scorecard_date = recent.index[-1].strftime("%b %Y") if not recent.empty else "N/A"
+    dos_date = (
+        df_dos.sort_values("date")["date"].iloc[-1].strftime("%b %d, %Y")
+        if not df_dos.empty
+        else "N/A"
+    )
+    spr_date = (
+        df_spr.dropna()["date"].iloc[-1].strftime("%b %d, %Y")
+        if not df_spr.empty
+        else "N/A"
+    )
+
+    n_at_risk = (status["status"] == "at risk").sum()
+    n_total = len(status)
+
     fig = make_subplots(
         rows=2,
         cols=2,
         subplot_titles=[
-            "Composite Gap Score (12mo)",
-            "Basin Profitability",
-            "Days of Supply (Latest)",
-            "SPR Level",
+            f"Composite Gap Score (through {scorecard_date})",
+            f"Basin Breakeven — {n_at_risk}/{n_total} at risk",
+            f"Days of Supply ({dos_date})",
+            f"Strategic Petroleum Reserve (through {spr_date})",
         ],
         vertical_spacing=0.15,
         horizontal_spacing=0.1,
     )
-
-    # TL: Scorecard last 12 months
-    actual = scorecard[~scorecard["is_forecast"]]
-    recent = actual.tail(52) if len(actual) > 52 else actual
     fig.add_trace(
         go.Scatter(
             x=recent.index,
@@ -546,7 +592,12 @@ def plot_risk_dashboard(
         row=1,
         col=2,
     )
-    fig.add_vline(x=current_wti, row=1, col=2, line=dict(color=COLORS["wti"], width=2, dash="dash"))
+    fig.add_vline(
+        x=current_wti, row=1, col=2,
+        line=dict(color=COLORS["wti"], width=2, dash="dash"),
+        annotation_text=f"WTI ${current_wti:.0f}",
+        annotation_position="top",
+    )
 
     # BL: Days of supply latest
     if not df_dos.empty:
@@ -598,6 +649,20 @@ def plot_risk_dashboard(
         height=650,
         showlegend=False,
     )
+
+    # Footnote: define composite gap score
+    fig.add_annotation(
+        text=(
+            "<b>Composite Gap Score:</b> blend of crude oil import and natural gas import "
+            "z-scores vs trailing averages. Negative = supply below norm."
+        ),
+        xref="paper", yref="paper",
+        x=0, y=-0.1,
+        showarrow=False,
+        font=dict(size=13, color="#334155"),
+        align="left",
+    )
+
     return fig
 
 
@@ -802,17 +867,35 @@ def plot_distillate_sankey() -> go.Figure:
 
 
 def plot_seasonal_decomposition(
-    series: pd.Series, period: int = 52, title: str = "Seasonal Decomposition"
+    series: pd.Series,
+    period: int = 12,
+    display_years: int = 3,
+    title: str = "Seasonal Decomposition",
 ) -> go.Figure:
     """STL decomposition of a time series into trend, seasonal, residual.
 
-    Uses robust STL (Loess) from statsmodels. Residual spikes indicate
-    structural breaks or supply disruptions not explained by normal patterns.
+    Uses robust STL (Loess) from statsmodels. The decomposition is estimated
+    on the FULL series for stable seasonal parameters, then the chart displays
+    only the most recent `display_years` for readability.
+
+    Residual spikes indicate structural breaks or supply disruptions not
+    explained by normal seasonal patterns.
     """
     from statsmodels.tsa.seasonal import STL
 
-    stl = STL(series.dropna(), period=period, robust=True)
+    clean = series.dropna()
+    n_obs = len(clean)
+    n_cycles = n_obs / period
+
+    stl = STL(clean, period=period, robust=True)
     result = stl.fit()
+
+    # Trim display window to recent years
+    display_start = clean.index.max() - pd.DateOffset(years=display_years)
+    mask = clean.index >= display_start
+
+    est_start = clean.index.min().strftime("%b %Y")
+    est_end = clean.index.max().strftime("%b %Y")
 
     fig = make_subplots(
         rows=4,
@@ -824,8 +907,8 @@ def plot_seasonal_decomposition(
 
     fig.add_trace(
         go.Scatter(
-            x=series.index,
-            y=series.values,
+            x=clean.index[mask],
+            y=clean.values[mask],
             line=dict(color=COLORS["oil"], width=1),
             name="Observed",
             showlegend=False,
@@ -834,10 +917,11 @@ def plot_seasonal_decomposition(
         col=1,
     )
 
+    trend_mask = result.trend.index >= display_start
     fig.add_trace(
         go.Scatter(
-            x=result.trend.index,
-            y=result.trend.values,
+            x=result.trend.index[trend_mask],
+            y=result.trend.values[trend_mask],
             line=dict(color=COLORS["composite"], width=2),
             name="Trend",
             showlegend=False,
@@ -846,10 +930,11 @@ def plot_seasonal_decomposition(
         col=1,
     )
 
+    seasonal_mask = result.seasonal.index >= display_start
     fig.add_trace(
         go.Scatter(
-            x=result.seasonal.index,
-            y=result.seasonal.values,
+            x=result.seasonal.index[seasonal_mask],
+            y=result.seasonal.values[seasonal_mask],
             line=dict(color=COLORS["natgas"], width=1),
             name="Seasonal",
             showlegend=False,
@@ -860,13 +945,14 @@ def plot_seasonal_decomposition(
 
     # Residuals with anomaly highlighting
     residuals = result.resid
-    resid_std = residuals.std()
-    anomaly_mask = residuals.abs() > 2 * resid_std
+    resid_std = residuals.std()  # computed on FULL series
+    resid_mask = residuals.index >= display_start
+    anomaly_mask = (residuals.abs() > 2 * resid_std) & resid_mask
 
     fig.add_trace(
         go.Scatter(
-            x=residuals.index,
-            y=residuals.values,
+            x=residuals.index[resid_mask],
+            y=residuals.values[resid_mask],
             line=dict(color=COLORS["neutral"], width=1),
             name="Residual",
             showlegend=False,
@@ -901,6 +987,97 @@ def plot_seasonal_decomposition(
         title=title,
         height=600,
         showlegend=False,
+    )
+
+    fig.add_annotation(
+        text=(
+            f"STL estimated on {n_obs} months ({est_start} to {est_end}, "
+            f"{n_cycles:.0f} annual cycles). "
+            f"Chart displays last {display_years} years. "
+            f"Anomaly threshold: \u00b12\u03c3 of full-series residuals."
+        ),
+        xref="paper", yref="paper",
+        x=0, y=-0.06,
+        showarrow=False,
+        font=dict(size=12, color="#334155"),
+        align="left",
+    )
+
+    return fig
+
+
+def plot_helium_supply(df_helium: pd.DataFrame) -> go.Figure:
+    """Helium supply-demand balance and BLM price over time."""
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        subplot_titles=[
+            "World Helium Production vs Demand (Mcm)",
+            "BLM Grade-A Helium Price ($/Mcf)",
+        ],
+    )
+
+    # Left: production vs demand bars + gap
+    fig.add_trace(
+        go.Bar(
+            x=df_helium["year"],
+            y=df_helium["world_production_Mcm"],
+            name="Production",
+            marker_color=COLORS["ok"],
+            hovertemplate="%{y} Mcm<extra>Production</extra>",
+        ),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Bar(
+            x=df_helium["year"],
+            y=df_helium["world_demand_Mcm"],
+            name="Demand",
+            marker_color=COLORS["composite"],
+            hovertemplate="%{y} Mcm<extra>Demand</extra>",
+        ),
+        row=1,
+        col=1,
+    )
+    fig.update_layout(barmode="group")
+
+    # Annotate supply gap on latest year
+    latest = df_helium.iloc[-1]
+    gap = latest["supply_gap_Mcm"]
+    gap_color = COLORS["critical"] if gap < 0 else COLORS["ok"]
+    fig.add_annotation(
+        x=latest["year"],
+        y=max(latest["world_production_Mcm"], latest["world_demand_Mcm"]) + 5,
+        text=f"Gap: {gap:+.0f} Mcm",
+        font=dict(size=12, color=gap_color, weight="bold"),
+        showarrow=False,
+        row=1,
+        col=1,
+    )
+
+    # Right: BLM price
+    fig.add_trace(
+        go.Scatter(
+            x=df_helium["year"],
+            y=df_helium["blm_price_usd_per_mcf"],
+            line=dict(color=COLORS["spr"], width=2.5),
+            fill="tozeroy",
+            fillcolor="rgba(249,115,22,0.15)",
+            name="BLM Price",
+            showlegend=False,
+            hovertemplate="$%{y}/Mcf<extra></extra>",
+        ),
+        row=1,
+        col=2,
+    )
+    fig.update_yaxes(title_text="$/Mcf", row=1, col=2)
+
+    fig.update_layout(
+        **LAYOUT_DEFAULTS,
+        title=f"Helium Market — {df_helium['year'].min()} to {df_helium['year'].max()}",
+        height=400,
+        legend=dict(orientation="h", y=-0.15),
     )
     return fig
 

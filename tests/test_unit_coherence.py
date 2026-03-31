@@ -473,7 +473,7 @@ class TestChartUnitLabels:
         fig = charts.plot_spr_status(self.f["df_spr"])
         left = _get_axis_title(fig, "yaxis")
         right = _get_axis_title(fig, "yaxis2")
-        assert "MBBL" in left, f"SPR left y-axis: '{left}' (expected 'MBBL')"
+        assert "bbl" in left.lower(), f"SPR left y-axis: '{left}' (expected barrel unit)"
         assert "%" in right or "SPR" in right, (
             f"SPR right y-axis: '{right}' (expected 'SPR %')"
         )

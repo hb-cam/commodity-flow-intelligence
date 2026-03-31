@@ -79,11 +79,26 @@ def fetch_product_stocks(api_key: str, start: str = "2020-01") -> pd.DataFrame:
     # Filter to MBBL only
     df = df[df["units"] == "MBBL"].copy()
 
-    # Tag SPR vs commercial for crude
+    # Tag stock type from process-name.
+    # EIA returns multiple process rows for crude:
+    #   "Ending Stocks"              = total (SPR + commercial) — tag as "total"
+    #   "Ending Stocks SPR"          = SPR only
+    #   "Ending Stocks Excluding SPR" = commercial only
+    #   "Stocks in Transit..."       = in-transit
+    # For non-crude products, only "Ending Stocks" exists (no SPR split).
+    # We must tag the crude total row as "total" to avoid double-counting.
     df["stock_type"] = "commercial"
-    df.loc[df["process-name"].str.contains("SPR", na=False), "stock_type"] = "spr"
-    df.loc[df["process-name"].str.contains("Excluding SPR", na=False), "stock_type"] = "commercial"
     df.loc[df["process-name"].str.contains("Transit", na=False), "stock_type"] = "transit"
+    # SPR rows (must check before "Excluding SPR" since both contain "SPR")
+    is_spr = df["process-name"].str.contains("SPR", na=False)
+    is_excl_spr = df["process-name"].str.contains("Excluding SPR", na=False)
+    df.loc[is_spr & ~is_excl_spr, "stock_type"] = "spr"
+    df.loc[is_excl_spr, "stock_type"] = "commercial"
+    # The bare "Ending Stocks" row for crude is the total (SPR + commercial).
+    # Tag it so downstream doesn't double-count.
+    is_crude = df["product"] == "EPC0"
+    is_bare_ending = df["process-name"] == "Ending Stocks"
+    df.loc[is_crude & is_bare_ending, "stock_type"] = "total"
 
     # Map product codes to names
     df["product_name"] = df["product"].map(PRODUCTS)

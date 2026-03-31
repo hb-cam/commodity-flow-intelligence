@@ -23,6 +23,35 @@ class ValidationResult:
     detail: str = ""
 
 
+def _date_range(df: pd.DataFrame, forecast: bool = False) -> str:
+    """Extract date range string from a DataFrame for provenance.
+
+    For forecast data (STEO), shows the historical/forecast split point
+    rather than the full span, since "1990–2027" is misleading.
+    """
+    if df.empty:
+        return ""
+    if "year" in df.columns:
+        return f"{df['year'].min()} to {df['year'].max()}"
+    if "date" not in df.columns:
+        return ""
+    if forecast:
+        if "is_forecast" in df.columns:
+            actuals = df[~df["is_forecast"]]
+            forecasts = df[df["is_forecast"]]
+        else:
+            now = pd.Timestamp.now()
+            actuals = df[df["date"] <= now]
+            forecasts = df[df["date"] > now]
+        parts = []
+        if not actuals.empty:
+            parts.append(f"actuals to {actuals['date'].max().date()}")
+        if not forecasts.empty:
+            parts.append(f"forecast to {forecasts['date'].max().date()}")
+        return ", ".join(parts)
+    return f"{df['date'].min().date()} to {df['date'].max().date()}"
+
+
 class RefreshPipeline:
     """Fetch all data sources, validate schemas and magnitudes, track provenance."""
 
@@ -51,9 +80,8 @@ class RefreshPipeline:
                     "petroleum/move/imp",
                     True,
                     rows=len(df),
-                    date_range=f"{df['date'].min().date()} to {df['date'].max().date()}"
-                    if not df.empty
-                    else "",
+                    date_range=_date_range(df),
+                    notes="Monthly; ~2-3 month reporting lag",
                 )
             )
         else:
@@ -65,6 +93,7 @@ class RefreshPipeline:
                     "offline generator",
                     False,
                     rows=len(df),
+                    date_range=_date_range(df),
                 )
             )
         self.data["imports"] = df
@@ -79,6 +108,7 @@ class RefreshPipeline:
                     "petroleum/stoc/wstk",
                     True,
                     rows=len(df),
+                    date_range=_date_range(df),
                     notes="Total petroleum by PADD (crude-only not available at PADD level)",
                 )
             )
@@ -91,6 +121,7 @@ class RefreshPipeline:
                     "offline generator",
                     False,
                     rows=len(df),
+                    date_range=_date_range(df),
                 )
             )
         self.data["stocks"] = df
@@ -105,6 +136,8 @@ class RefreshPipeline:
                     "steo",
                     True,
                     rows=len(df),
+                    date_range=_date_range(df, forecast=True),
+                    notes="Short-Term Energy Outlook (monthly publication)",
                 )
             )
         else:
@@ -116,6 +149,7 @@ class RefreshPipeline:
                     "offline generator",
                     False,
                     rows=len(df),
+                    date_range=_date_range(df, forecast=True),
                 )
             )
         self.data["steo"] = df
@@ -130,7 +164,8 @@ class RefreshPipeline:
                     "natural-gas/move/poe1",
                     True,
                     rows=len(df),
-                    notes="Pipeline + LNG split (Bcf)",
+                    date_range=_date_range(df),
+                    notes="Pipeline + LNG split (Bcf); ~2-3 month lag",
                 )
             )
         else:
@@ -142,6 +177,7 @@ class RefreshPipeline:
                     "offline generator",
                     False,
                     rows=len(df),
+                    date_range=_date_range(df),
                 )
             )
         self.data["natgas"] = df
@@ -155,6 +191,7 @@ class RefreshPipeline:
                 "offline generator",
                 False,
                 rows=len(df),
+                date_range=_date_range(df),
                 notes="USGS publishes annual PDFs, no API",
             )
         )
@@ -169,6 +206,7 @@ class RefreshPipeline:
                 "offline generator",
                 False,
                 rows=len(df),
+                date_range=_date_range(df),
                 notes="Q4 2024 survey values; no public API",
             )
         )
@@ -183,6 +221,7 @@ class RefreshPipeline:
                 "offline generator",
                 False,
                 rows=len(df),
+                date_range=_date_range(df),
                 notes="DPR not in EIA API v2; baselined to Feb 2025 values",
             )
         )
