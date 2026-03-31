@@ -38,7 +38,18 @@ def main() -> None:
     actual = scorecard[~scorecard["is_forecast"]]
 
     df_breakevens = data["breakevens"]
-    current_wti = df_breakevens.sort_values("date").iloc[-1]["wti_price_usd_bbl"]
+
+    # Get current WTI from live market; fall back to trailing average of offline data
+    try:
+        from commodity_flow import futures
+
+        _fut = futures.fetch_futures_curves()
+        current_wti = round(
+            float(_fut[_fut["symbol"] == "CL=F"].sort_values("date").iloc[-1]["close"]), 2
+        )
+    except Exception:
+        current_wti = round(float(df_breakevens["wti_price_usd_bbl"].tail(4).mean()), 2)
+
     status = analysis.compute_breakeven_status(df_breakevens, current_wti)
 
     # Inventory

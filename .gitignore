@@ -17,6 +17,7 @@ build/
 *.pem
 *.token
 *.secret
+.secrets/
 
 # IDE
 .vscode/
@@ -34,3 +35,6 @@ data/
 
 # CI artifacts
 signal_result.json
+
+# Data freshness cache (machine-local)
+.data_manifest.json
